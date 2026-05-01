@@ -117,26 +117,31 @@ Ogrenci akisi:
 2. "Online Test" butonuna basar.
 3. Dersleri gorur.
 4. Bir ders secer.
-5. O derse ait aktif testi cozer.
-6. Testi bitirir.
-7. Sonucunu gorur.
+5. O derse ait aktif testleri gorur.
+6. Bir test secer.
+7. Ogrenci bilgi formunu doldurur ve e-posta OTP dogrulamasini tamamlar.
+8. Testi cozer.
+9. Testi bitirir.
+10. Sonucunu gorur.
 
 Ogrenciden alinabilecek bilgiler:
 
 - Ad soyad
-- Telefon veya e-posta
+- E-posta (zorunlu)
+- Telefon (opsiyonel)
 - Sinif seviyesi
 - Bagli oldugu hoca, varsa
 
-Not: "Herhangi biri girebilecek" istegi nedeniyle ogrenci girisi zorunlu olmayacaktir. Ancak sonuc takibi yapabilmek icin test baslamadan once minimum kimlik bilgisi alinmalidir.
+Not: "Herhangi biri girebilecek" istegi nedeniyle ogrenci uyeligi zorunlu olmayacaktir. Ancak sonuc takibi ve tekrar deneme kontrolu icin test baslamadan once dogrulanmis e-posta alinmalidir.
 
 Kimlik dogrulama:
 
-- Ogrenci bilgi formunda girilen telefon veya e-posta adresine tek kullanimlik dogrulama kodu (OTP) gonderilir.
+- Ogrenci bilgi formunda girilen e-posta adresine tek kullanimlik dogrulama kodu (OTP) gonderilir.
 - OTP dogrulanmadan test baslatilamaz.
 - Bu adim sahte bilgi girilerek tekrar deneme engelinin bypass edilmesini onler.
 - OTP gondermek icin e-posta servisi (Resend) kullanilacaktir. SMS entegrasyonu ileri faza birakilmistir.
 - OTP kodlari 5 dakika gecerlidir ve tek kullanimliktir.
+- Telefon MVP'de sadece iletisim bilgisi olarak tutulur; kimlik dogrulama ve tekrar deneme kontrolunde kullanilmaz.
 
 ### 4.2 Hoca
 
@@ -305,7 +310,7 @@ Icerik:
 - Ders secimi
 - Soru havuzundan soru secimi
 - Testi aktif/pasif yapma
-- Test ayarlari (sure, anonim katilim izni, sonuc gosterimi)
+- Test ayarlari (sure, uyeliksiz katilim, sonuc gosterimi)
 
 Notlar:
 
@@ -342,6 +347,15 @@ Ilk faz:
 - Ana sayfada reklam alani
 - Ders secim sayfasinda reklam alani
 - Sonuc ekraninda reklam alani
+
+MVP reklam standardi:
+
+- Reklamlar statik placeholder component olarak baslar.
+- Ana sayfa reklam alani yatay banner olarak konumlanir.
+- Ders secim sayfasinda kart grid'ini bozmayacak yatay veya dikey placeholder kullanilir.
+- Sonuc ekraninda sonuc ozetinden sonra yatay banner kullanilir.
+- Reklam componentleri mobilde tam genislik, desktop'ta max-width sinirli calisir.
+- Tiklanma takibi MVP'de yoktur.
 
 Ileri faz:
 
@@ -400,7 +414,7 @@ Temel route yapisi:
 
 - `/`: Ana sayfa
 - `/online-test`: Ders secim sayfasi
-- `/online-test/[courseId]`: Dersin test baslangic sayfasi
+- `/online-test/[courseId]`: Dersin aktif test listesi
 - `/test/[testId]/start`: Ogrenci bilgi formu ve test kurallari
 - `/test/[attemptId]`: Test cozme ekrani
 - `/test/[attemptId]/result`: Sonuc ekrani
@@ -444,6 +458,17 @@ Ilk MVP icin roller:
 - `teacher`
 
 Ogrenci ilk etapta zorunlu uyelik olmadan test cozer. Ogrencinin girdigi bilgiler `students` tablosuna kaydedilir ve test denemesiyle iliskilendirilir.
+Ogrenci kimligi MVP'de dogrulanmis e-posta uzerinden tekillestirilir. Telefon opsiyoneldir ve kimlik dogrulama icin kullanilmaz.
+
+Admin paneli MVP kapsamina minimal olarak dahildir. Bu panelde sadece hoca hesabi yonetimi, ders yonetimi ve hoca-ogrenci eslestirme islemleri yer alir. Reklam yonetimi, sistem ayarlari ve gelismis denetim ekranlari ileri faza birakilir.
+
+Hoca ve admin giris yontemi:
+
+- MVP'de Auth.js Credentials Provider kullanilacaktir.
+- Sifreler `bcrypt` ile hashlenerek saklanacaktir.
+- Hoca hesaplari public kayit sayfasi olmadan admin tarafindan olusturulacaktir.
+- Ilk admin kullanicisi seed script ile olusturulacaktir.
+- Google login ve magic link girisi MVP'de yoktur, ileri fazda degerlendirilebilir.
 
 ### 6.5 Guvenlik ve Yetkilendirme
 
@@ -468,6 +493,16 @@ UI kararlari:
 - Public ogrenci ekranlari sade, hizli ve mobil uyumlu olacak.
 - Test ekraninda dikkat dagitmayacak temiz bir tasarim tercih edilecek.
 
+Tasarim dili MVP kararlari:
+
+- Font: Inter veya Geist Sans.
+- Ana renk: koyu lacivert/indigo tonlari.
+- Yardimci renk: yesil veya turkuaz aksan.
+- Arka plan: acik gri/beyaz agirlikli sade layout.
+- Ikon seti: Lucide React.
+- Public sayfalarda mobil-first tasarim uygulanir.
+- Hoca panelinde bilgi yogunlugu yuksek ama sade dashboard dili kullanilir.
+
 UI durum yonetimi:
 
 - Her veri cekme ekraninda uc durum tasarlanacaktir: yukleniyor (skeleton/spinner), bos durum (icerik yok mesaji ve yonlendirme) ve hata durumu (kullanici dostu Turkce mesaj ve tekrar dene butonu).
@@ -484,16 +519,30 @@ Formlarda:
 - Ogrenci bilgi formu, soru ekleme formu, test olusturma formu ve giris formlari ortak validasyon mantigiyla yazilacak.
 - Hata mesajlari kullaniciya Turkce ve net gosterilecek.
 
-### 6.8 Test Stratejisi
+### 6.8 Kod Organizasyonu ve Servis Katmani
+
+Feature bazli kodlarda ayni kalip izlenecektir:
+
+- `components`: Sadece UI bilesenleri.
+- `actions.ts`: Form mutation'lari ve server action giris noktalari.
+- `queries.ts`: Server-side read sorgulari.
+- `schemas.ts`: Zod validasyon semalari.
+- `services.ts`: Is kurallari, transaction'lar ve tekrar kullanilan server-side mantik.
+- `types.ts`: Feature'a ozel TypeScript tipleri.
+
+Yetki helper'lari `src/lib/auth` veya `src/lib/authorization` altinda tutulur. `requireTeacher()`, `requireAdmin()`, `assertOwnsTest()` ve benzeri fonksiyonlar tum server action ve query'lerde ortak kullanilir.
+
+### 6.9 Test Stratejisi
 
 MVP icin test yaklasimi:
 
+- Unit test araci olarak Vitest kullanilacaktir.
 - Kritik hesaplama fonksiyonlari icin unit test yazilacak.
 - Test sonuc hesaplama, bos/dogru/yanlis sayimi ve puanlama mantigi ayrica test edilecek.
 - Ogrenci test akisi ve hoca girisi manuel senaryo testleriyle kontrol edilecek.
 - Ileri fazda Playwright ile uctan uca testler eklenebilir.
 
-### 6.9 Deployment Yaklasimi
+### 6.10 Deployment Yaklasimi
 
 Deployment Vercel uzerinden yapilacak.
 
@@ -511,10 +560,19 @@ Environment variable kurallari:
 - `GOOGLE_CLIENT_ID`: Google login eklenirse kullanilir.
 - `GOOGLE_CLIENT_SECRET`: Google login eklenirse server-side gizli tutulur.
 - `BLOB_READ_WRITE_TOKEN`: Ileri fazda Vercel Blob ile dosya/gorsel yukleme icin kullanilir.
+- `UPSTASH_REDIS_REST_URL`: Rate limiting icin kullanilir.
+- `UPSTASH_REDIS_REST_TOKEN`: Rate limiting icin gizli tutulur.
+- `RESEND_API_KEY`: OTP, sifre sifirlama ve e-posta bildirimleri icin kullanilir.
 
 Gizli anahtarlar Git'e commit edilmeyecek. Vercel dashboard veya Vercel CLI uzerinden ortamlara ayri ayri tanimlanacak.
 
-### 6.10 Yedekleme ve Geri Yukleme
+CI/CD kontrolleri:
+
+- Pull request veya main branch deploy oncesinde `lint`, `typecheck`, `test` ve `build` komutlari calismalidir.
+- Vercel preview deployment basarisizsa merge yapilmaz.
+- Production deploy oncesinde migration'lar ve environment variable listesi kontrol edilir.
+
+### 6.11 Yedekleme ve Geri Yukleme
 
 Yedekleme stratejisi:
 
@@ -523,7 +581,7 @@ Yedekleme stratejisi:
 - Kritik migration islemlerinden once veritabaninin snapshot'i alinacaktir.
 - Geri yukleme senaryosu en az bir kez test edilecektir.
 
-### 6.11 Ozellik Karari
+### 6.12 Ozellik Karari
 
 Online sinav sistemlerinde yaygin gorulen ozelliklerden hangilerinin MVP'de olacagi, hangilerinin ileri faza birakilacagi asagida netlestirilmistir. Sayfa ve akis bazinda MVP kapsami icin Bolum 12'ye bakilmalidir.
 
@@ -564,6 +622,7 @@ Alanlar:
 - user_id
 - full_name
 - email
+- password_hash
 - role: `admin` veya `teacher`
 - avatar_url
 - is_active
@@ -574,6 +633,7 @@ Notlar:
 
 - Hoca girisi Auth.js (NextAuth) ile yapilir.
 - `user_id`, auth sistemindeki kullanici kaydina baglanir.
+- `password_hash`, Credentials Provider ile giris icin `bcrypt` hash degerini tutar.
 - Yetki kontrolunde `profiles.role` ve server-side ownership kontrolleri kullanilir.
 - Admin kullanicilar ilk etapta manuel olarak tanimlanabilir.
 
@@ -585,7 +645,7 @@ Alanlar:
 
 - id
 - full_name
-- email
+- email (zorunlu, unique)
 - phone
 - grade_level
 - school_name
@@ -595,11 +655,34 @@ Alanlar:
 Notlar:
 
 - Ogrenci ilk etapta uyelik acmadan test cozer.
-- Ayni ogrencinin tekrar test cozebilmesi icin telefon veya e-posta ile eslestirme yapilabilir.
+- Ayni ogrencinin tekrar test cozebilmesi icin MVP'de dogrulanmis e-posta ile eslestirme yapilir.
 - Ileri fazda ogrenci uyeligi eklenirse bu tablo auth kullanicisiyla iliskilendirilebilir.
 - `email` alani uzerinde `UNIQUE` constraint uygulanacaktir. Ayni e-posta ile birden fazla kayit olusturulamaz.
-- `phone` alani uzerinde `UNIQUE` constraint uygulanacaktir. Ayni telefon ile birden fazla kayit olusturulamaz.
+- `phone` alani MVP'de opsiyoneldir ve unique constraint almaz.
 - Yeni test girisinde mevcut ogrenci kaydi varsa guncellenir, yoksa yeni kayit olusturulur (upsert).
+
+### 7.2.1 otp_verifications
+
+Ogrenci e-posta dogrulama kodlarini tutar.
+
+Alanlar:
+
+- id
+- email
+- code_hash
+- purpose: `student_test_start`, `password_reset`
+- expires_at
+- consumed_at
+- attempt_count
+- created_at
+
+Notlar:
+
+- OTP kodlari duz metin olarak saklanmaz; hashlenmis sekilde tutulur.
+- OTP 5 dakika gecerlidir.
+- Ayni e-posta icin 5 dakikada en fazla 3 OTP gonderilebilir.
+- OTP dogrulamada en fazla 5 hatali deneme kabul edilir; sonrasinda yeni kod istenir.
+- Kullanilan OTP icin `consumed_at` doldurulur ve ayni kod tekrar kullanilamaz.
 
 ### 7.3 teacher_students
 
@@ -668,8 +751,11 @@ Alanlar:
 Notlar:
 
 - MVP'de soru tipi coktan secmeli ve tek dogru cevapli olacak.
+- MVP'de her soru 4 siklidir ve `option_a`, `option_b`, `option_c`, `option_d` alanlari zorunludur.
+- `correct_option` yalnizca `A`, `B`, `C`, `D` degerlerinden biri olabilir.
 - `topic` alani konu bazli filtreleme icin kullanilir.
-- `explanation` alani sonuc detayinda veya ilerleyen fazda cevap aciklamasi icin kullanilir.
+- `explanation` alani MVP'de hoca panelinde gorunur; ogrenci sonuc ekraninda gosterilmez. Ogrenciye aciklama gostermek ileri faza birakilir.
+- `image_url` alani MVP'de kullanilmaz; soru gorseli ve dosya yukleme Vercel Blob entegrasyonu ile ileri fazda eklenir.
 - Ortak soru havuzu istenirse ilerleyen fazda `visibility` veya `is_shared` alani eklenebilir.
 
 ### 7.6 tests
@@ -686,7 +772,7 @@ Alanlar:
 - duration_minutes
 - status: `draft`, `active`, `archived`
 - show_result_immediately
-- allow_anonymous_attempts
+- requires_student_account
 - starts_at
 - ends_at
 - created_at
@@ -695,9 +781,12 @@ Alanlar:
 Notlar:
 
 - Ogrenci tarafinda sadece `active` durumdaki testler gorunur.
-- `allow_anonymous_attempts` ilk MVP'de true olarak kullanilabilir.
+- `requires_student_account` MVP'de `false` olarak kullanilir. Bu, ogrencinin uyelik acmadan test cozebilecegi anlamina gelir; e-posta OTP ve KVKK onayi yine zorunludur.
 - Sure zorunlu olmayabilir; `duration_minutes` bos ise suresiz test anlamina gelir.
-- `starts_at` ve `ends_at` alanlari dolu olan testlerde status gecisi otomatik olarak kontrol edilecektir: `starts_at` gecmis ve `ends_at` gelecekteyse test `active` sayilir, `ends_at` gecmisse `archived` sayilir.
+- Public tarafta testin gorunebilmesi icin `status = active` olmalidir.
+- `status = active` olan testlerde `starts_at` ve `ends_at` doluysa tarih araligi da kontrol edilir.
+- `status = draft` olan test, tarih araligi uygun olsa bile public tarafta gorunmez.
+- `ends_at` gecmisse test public tarafta gorunmez ve server-side sorgularda pasif sayilir.
 - Bu kontrol, testin sorgulandigi anda server-side yapilacaktir (cron job yerine lazy evaluation).
 
 ### 7.7 test_questions
@@ -737,6 +826,9 @@ Alanlar:
 - empty_count
 - ip_address
 - user_agent
+- kvkk_accepted_at
+- privacy_accepted_at
+- terms_accepted_at
 - created_at
 
 Notlar:
@@ -744,6 +836,12 @@ Notlar:
 - Ogrenci testi baslattiginda `in_progress` kaydi acilir.
 - Test bitince skor ve sayim alanlari doldurulur.
 - Ileri fazda yarim kalan testleri tamamlama veya auto-save bu tablo uzerinden gelistirilebilir.
+- Ayni ogrencinin ayni testi tekrar cozmesini engellemek icin `(test_id, student_id)` unique index uygulanir.
+- KVKK, gizlilik ve kullanim kosullari onay zamanlari attempt uzerinde saklanir.
+- Sure doldugunda server mevcut attempt'i otomatik tamamlar; o ana kadar gonderilmis cevaplar uzerinden sonuc hesaplanir, gonderilmemis sorular bos sayilir.
+- Sayfa yenilenirse veya baglanti koparsa MVP'de cevaplar otomatik kaydedilmez. Auto-save ileri faza birakilmistir.
+- Puanlama MVP'de yuzdelik skor olarak hesaplanir: `score = correct_count / total_question_count * 100`.
+- Yanlis cevaplar dogru cevaplari goturmez.
 
 ### 7.9 student_answers
 
@@ -808,13 +906,19 @@ Veritabani seviyesinde RLS kullanilmadigi icin tum veri erisimi Next.js server a
 Veri erisim kurallari:
 
 - `profiles`: Kullanici kendi profilini gorebilir. Admin tum profilleri yonetebilir.
-- `students`: Admin tum ogrencileri gorebilir. Hoca sadece `teacher_students` uzerinden kendisine bagli ogrencileri gorebilir.
+- `students`: Admin tum ogrencileri gorebilir. Hoca, kendisine tanimli ogrencileri ve kendi testlerine girmis ogrencileri gorebilir.
 - `teacher_students`: Admin tum eslestirmeleri yonetebilir. Hoca kendi eslestirmelerini okuyabilir.
 - `questions`: Hoca kendi sorularini yonetebilir. Admin tum sorulari gorebilir.
 - `tests`: Hoca kendi testlerini yonetebilir. Public tarafta sadece aktif testler okunabilir.
 - `test_attempts`: Hoca kendi testlerine ait denemeleri gorebilir. Admin tum denemeleri gorebilir.
 - `student_answers`: Hoca kendi testlerine ait cevaplari gorebilir. Admin tum cevaplari gorebilir.
 - `ads`: Public tarafta aktif reklamlar okunabilir. Admin reklam yonetimi yapabilir.
+
+Hoca ogrenci gorunurlugu karari:
+
+- Hoca, kendi olusturdugu testlere giren tum ogrencilerin sonuc kayitlarini gorebilir.
+- Hoca, admin tarafindan kendisine tanimlanan ogrencileri `teacher_students` uzerinden ayrica gorebilir.
+- Hoca, baska hocalarin testlerine ait sonuc ve cevap detaylarini goremez.
 
 Teknik uygulama:
 
@@ -1373,13 +1477,13 @@ Arda:
 Emir:
 
 - Reklam alanlarinin tamamlanmasi.
-- Hakkimizda, Iletisim, SSS, Gizlilik, KVKK metni, Kullanim Kosullari sayfalari.
+- Iletisim, Gizlilik, KVKK metni ve Kullanim Kosullari sayfalari.
 - Mobil gorunum kontrolleri.
 - Erisilebilirlik ve icerik son okumasi.
 
 ## 12. MVP Kapsami (Sayfa ve Akis Bazinda)
 
-Bu bolum, MVP'de yer alacak sayfalari ve akislari listeler. Ozellik bazinda kapsam icin Bolum 6.10'a bakilmalidir.
+Bu bolum, MVP'de yer alacak sayfalari ve akislari listeler. Ozellik bazinda kapsam icin Bolum 6.12'ye bakilmalidir.
 
 Ilk calisan surumde olacak sayfalar ve akislar:
 
@@ -1396,7 +1500,7 @@ Ilk calisan surumde olacak sayfalar ve akislar:
 - Sinava giren ogrenciler sayfasi
 - Tanimli ogrenciler sayfasi
 - Admin paneli (hoca ve ders yonetimi)
-- Icerik sayfalari (Hakkimizda, Iletisim, SSS, Gizlilik, KVKK, Kullanim Kosullari)
+- Zorunlu icerik sayfalari (Iletisim, Gizlilik Politikasi, KVKK Aydinlatma Metni, Kullanim Kosullari)
 - Statik reklam alanlari (ana sayfa, ders listesi, sonuc)
 
 Ilk surumde olmayacak sayfalar ve akislar:
@@ -1406,7 +1510,8 @@ Ilk surumde olmayacak sayfalar ve akislar:
 - Detayli istatistik/grafik sayfalari
 - Sertifika sayfasi
 - Coklu dil destegi
-- SMS/e-posta bildirim ayarlari
+- Hakkimizda ve SSS sayfalari
+- SMS ve bildirim ayarlari
 - Yapay zeka ile soru uretimi
 - Reklam yonetim paneli (admin tarafinda dinamik reklam yonetimi)
 
@@ -1418,10 +1523,20 @@ PRD'nin tek karar kaynagi olmasi prensibiyle, projenin ilerleyisini etkileyen ka
 
 - Ogrenci, teste baslamadan once asagidaki bilgileri girer:
   - Ad-soyad (zorunlu)
-  - Telefon **veya** e-posta (en az biri zorunlu)
+  - E-posta (zorunlu)
+  - Telefon (opsiyonel)
   - Sinif seviyesi (zorunlu)
   - Bagli oldugu hoca (opsiyonel, dropdown)
-- Ogrenci girisi/uyeligi MVP'de yoktur. Tekrar test cozme kontrolu telefon/e-posta uzerinden yapilir.
+- Ogrenci girisi/uyeligi MVP'de yoktur. Tekrar test cozme kontrolu dogrulanmis e-posta uzerinden yapilir.
+- Test baslatma akisi sirayla su sekildedir:
+  - Ogrenci test baslangic sayfasinda bilgilerini girer.
+  - KVKK, gizlilik ve kullanim kosullari onaylarini verir.
+  - E-posta adresine OTP gonderilir.
+  - OTP dogrulanir.
+  - `students` tablosunda e-posta ile upsert yapilir.
+  - `(test_id, student_id)` unique kontroluyle tekrar deneme engellenir.
+  - `test_attempts` kaydi transaction icinde `in_progress` olarak olusturulur.
+  - Ogrenci test cozme ekranina yonlendirilir.
 
 ### 13.2 Hoca Hesabi Yonetimi
 
@@ -1433,6 +1548,7 @@ PRD'nin tek karar kaynagi olmasi prensibiyle, projenin ilerleyisini etkileyen ka
 
 - Bir ders icinde ayni anda birden fazla aktif test olabilir.
 - Ogrenci bir dersi sectiginde aktif testlerin listesini gorur.
+- Ogrenci listeden bir test sectiginde `/test/[testId]/start` sayfasina gider.
 
 ### 13.4 Soru Havuzu Sahipligi
 
@@ -1455,7 +1571,7 @@ PRD'nin tek karar kaynagi olmasi prensibiyle, projenin ilerleyisini etkileyen ka
 
 - Ayni testin ayni ogrenci tarafindan tekrar tekrar cozulmesi MVP'de engellenir.
 - Tekil deneme kontrolu `test_attempts` tablosunda `(test_id, student_id)` uzerinden unique index ile saglanir.
-- Ogrenci kimligi OTP ile dogrulanmis telefon/e-posta uzerinden belirlenir (bkz. Bolum 4.1 Kimlik dogrulama).
+- Ogrenci kimligi OTP ile dogrulanmis e-posta uzerinden belirlenir (bkz. Bolum 4.1 Kimlik dogrulama).
 - OTP dogrulamasindan gecmis ogrenci kaydi `students` tablosundaki mevcut kayitla eslestirilir.
 - "Tekrar denemeye izin ver" ayari ileri faza birakilmistir.
 
@@ -1488,6 +1604,30 @@ PRD'nin tek karar kaynagi olmasi prensibiyle, projenin ilerleyisini etkileyen ka
 - `RESEND_API_KEY` environment variable olarak saklanacaktir.
 - E-posta sablonlari React Email ile olusturulacaktir.
 - SMS entegrasyonu (Twilio, Netgsm vb.) ileri faza birakilmistir.
+
+### 13.13 URL ve Route Dili
+
+- MVP'de route isimleri teknik olarak kisa ve tutarli tutulur.
+- Public test akisi icin ana route `/online-test` olarak kalir.
+- SEO icin ileride Turkce alias route'lar (`/dersler` gibi) eklenebilir, ancak MVP'de tek route seti kullanilir.
+
+### 13.14 Branch ve Commit Kurallari
+
+- Ana branch `main` olur.
+- Aktif gelistirme icin `dev` branch'i kullanilir.
+- Yeni isler `feature/kisa-aciklama`, hata duzeltmeleri `fix/kisa-aciklama` branch'lerinde yapilir.
+- Commit mesajlari kisa ve emir kipinde yazilir: `add teacher login`, `fix test scoring` gibi.
+
+### 13.15 Seed ve Demo Veri
+
+MVP seed verisi asgari olarak sunlari icerir:
+
+- 1 admin kullanicisi
+- 1 hoca kullanicisi
+- 3 ders
+- Her ders icin en az 5 soru
+- En az 1 aktif test
+- En az 1 tamamlanmis test denemesi ve sonuc kaydi
 
 ## 14. Basari Kriterleri
 
@@ -1544,11 +1684,12 @@ Onerilen feature klasorleri:
 3. Prisma kurulumunu yap.
 4. PostgreSQL icin Neon uzerinde veritabani olustur.
 5. Auth.js (NextAuth) Prisma adaptoru kurulumunu hazirla.
-6. `profiles`, `students`, `teacher_students`, `courses`, `questions`, `tests`, `test_questions`, `test_attempts`, `student_answers` tablolarini Prisma migration olarak hazirla.
-7. Vercel deployment icin environment variable listesini olustur.
-8. Ana sayfa ve route gruplarini olustur.
-9. Ders listeleme ve ogrenci test akisini baslat.
-10. Her faz sonunda PRD'yi guncelleyip ilerlemeyi kontrol et.
+6. `profiles`, `students`, `otp_verifications`, `teacher_students`, `courses`, `questions`, `tests`, `test_questions`, `test_attempts`, `student_answers` tablolarini Prisma migration olarak hazirla.
+7. Resend ve Upstash environment variable listesini olustur.
+8. Vercel deployment icin environment variable listesini olustur.
+9. Ana sayfa ve route gruplarini olustur.
+10. Ders listeleme ve ogrenci test akisini baslat.
+11. Her faz sonunda PRD'yi guncelleyip ilerlemeyi kontrol et.
 
 ## 17. Arastirma Kaynaklari
 
@@ -1591,6 +1732,14 @@ Sistem asagidaki kisisel verileri toplar:
 - Veriler sadece sistemin calismasi icin gerekli sure boyunca saklanacak.
 - Saglik, dini inanc gibi ozel nitelikli veri toplanmayacak.
 
+Veri saklama ve silme:
+
+- Ogrenci test sonuc verileri MVP'de 2 yil saklanir.
+- Iletisim ve kimlik bilgileri, silme talebi gelmedigi surece sonuc verileriyle birlikte saklanir.
+- Silme talebi geldiginde ogrencinin ad-soyad, e-posta, telefon ve okul bilgisi anonimlestirilir.
+- Test sonuc istatistikleri sistem raporlamasi icin anonim olarak tutulabilir.
+- Hoca ve admin hesap kayitlari hesap aktif oldugu surece saklanir; hesap kapatilinca pasife alinir.
+
 ### 18.3 Cerez ve KVKK Bildirimi
 
 - Ana sayfada cerez bildirimi banner'i olacak.
@@ -1616,6 +1765,23 @@ Sistem asagidaki kisisel verileri toplar:
 - Gelistirme: Konsol loglari yeterli.
 - Production: Vercel Logs uzerinden temel inceleme yapilir.
 - Kritik hatalar icin Sentry entegrasyonu ileri fazda dusunulebilir.
+
+Minimum production log formati:
+
+- `event`: hata veya islem adi
+- `request_id`: varsa istek takip id'si
+- `user_id`: giris yapmis hoca/admin varsa
+- `route` veya `action`: hatanin olustugu yer
+- `error_code`: kullaniciya gosterilmeyen teknik hata kodu
+- `created_at`: log zamani
+
+Loglanacak kritik olaylar:
+
+- Basarisiz hoca giris denemeleri
+- OTP gonderme ve OTP dogrulama hatalari
+- Test baslatma hatalari
+- Test tamamlama ve sonuc hesaplama hatalari
+- Yetkisiz veri erisim denemeleri
 
 ### 19.3 Analytics
 
@@ -1653,7 +1819,7 @@ Online sinav platformlarinda kritik bir noktadir.
 
 ### 22.1 Yeniden Giris Kontrolu
 
-- Bir testin ayni ogrenci tarafindan tekrar tekrar cozulmesini engellemek icin telefon veya e-posta bazli tekil deneme kontrolu yapilir.
+- Bir testin ayni ogrenci tarafindan tekrar tekrar cozulmesini engellemek icin dogrulanmis e-posta bazli tekil deneme kontrolu yapilir.
 - `test_attempts` tablosunda `(test_id, student_id)` icin tekil indeks veya policy uygulanir.
 - Hoca dilerse "tekrar denemeye izin ver" ayarini ileri fazda acabilir.
 
@@ -1676,20 +1842,26 @@ Online sinav platformlarinda kritik bir noktadir.
 
 - Test baslatma endpoint'ine IP bazli rate limiting eklenir: ayni IP'den dakikada en fazla 5 test baslatma istegi.
 - Hoca giris endpoint'ine rate limiting eklenir: ayni IP'den dakikada en fazla 10 giris denemesi.
-- OTP gonderme endpoint'ine rate limiting eklenir: ayni telefon/e-posta'ya 5 dakikada en fazla 3 OTP istegi.
-- Rate limiting Next.js middleware veya `upstash/ratelimit` kutuphanesi ile uygulanacaktir.
+- OTP gonderme endpoint'ine rate limiting eklenir: ayni e-posta adresine 5 dakikada en fazla 3 OTP istegi.
+- Rate limiting MVP'de `@upstash/ratelimit` ve Upstash Redis ile uygulanacaktir.
+- Gerekli environment variable'lar: `UPSTASH_REDIS_REST_URL` ve `UPSTASH_REDIS_REST_TOKEN`.
 - Ileri fazda Cloudflare Turnstile veya hCaptcha ile bot korumasina gecilecektir.
 
 ## 23. Icerik Sayfalari
 
 Public alanda olmasi gereken icerik sayfalari:
 
-- Hakkimizda
+MVP'de zorunlu sayfalar:
+
 - Iletisim
-- Sikca Sorulan Sorular (SSS)
 - Gizlilik Politikasi
 - KVKK Aydinlatma Metni
 - Kullanim Kosullari
+
+Ileri faz sayfalari:
+
+- Hakkimizda
+- Sikca Sorulan Sorular (SSS)
 
 Sorumluluk:
 
