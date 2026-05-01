@@ -1,6 +1,6 @@
 import { Difficulty } from "@prisma/client";
 
-import { deactivateQuestion } from "@/features/question-bank/actions";
+import { deactivateQuestion, updateQuestion } from "@/features/question-bank/actions";
 import { QuestionForm } from "@/features/question-bank/components/question-form";
 import { getTeacherQuestionBank } from "@/features/question-bank/queries";
 import { requireTeacher } from "@/lib/authorization";
@@ -90,6 +90,59 @@ export default async function TeacherQuestionsPage({ searchParams }: TeacherQues
                       </button>
                     </form>
                   </div>
+
+                  <details className="mt-5 rounded-2xl bg-slate-50 p-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-slate-700">Soruyu Duzenle</summary>
+                    <form action={updateQuestion} className="mt-4 space-y-4">
+                      <input name="questionId" type="hidden" value={question.id} />
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <label className="space-y-2 text-sm font-medium text-slate-700">
+                          <span>Ders</span>
+                          <select className="w-full rounded-xl border border-slate-300 px-4 py-3" defaultValue={question.courseId} name="courseId" required>
+                            {courses.map((course) => (
+                              <option key={course.id} value={course.id}>
+                                {course.title}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="space-y-2 text-sm font-medium text-slate-700">
+                          <span>Zorluk</span>
+                          <select className="w-full rounded-xl border border-slate-300 px-4 py-3" defaultValue={question.difficulty} name="difficulty" required>
+                            <option value={Difficulty.EASY}>Kolay</option>
+                            <option value={Difficulty.MEDIUM}>Orta</option>
+                            <option value={Difficulty.HARD}>Zor</option>
+                          </select>
+                        </label>
+                        <Field defaultValue={question.topic ?? ""} label="Konu" name="topic" />
+                      </div>
+                      <label className="space-y-2 text-sm font-medium text-slate-700">
+                        <span>Soru metni</span>
+                        <textarea className="min-h-28 w-full rounded-xl border border-slate-300 px-4 py-3" defaultValue={question.questionText} name="questionText" required />
+                      </label>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <Field defaultValue={question.optionA} label="A sikki" name="optionA" required />
+                        <Field defaultValue={question.optionB} label="B sikki" name="optionB" required />
+                        <Field defaultValue={question.optionC} label="C sikki" name="optionC" required />
+                        <Field defaultValue={question.optionD} label="D sikki" name="optionD" required />
+                      </div>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <label className="space-y-2 text-sm font-medium text-slate-700">
+                          <span>Dogru sik</span>
+                          <select className="w-full rounded-xl border border-slate-300 px-4 py-3" defaultValue={question.correctOption} name="correctOption" required>
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                          </select>
+                        </label>
+                        <Field defaultValue={question.explanation ?? ""} label="Aciklama" name="explanation" />
+                      </div>
+                      <button className="rounded-full bg-indigo-950 px-5 py-3 text-sm font-semibold text-white" type="submit">
+                        Degisiklikleri Kaydet
+                      </button>
+                    </form>
+                  </details>
                 </article>
               ))}
             </div>
@@ -110,4 +163,13 @@ function formatDifficulty(difficulty: Difficulty) {
   };
 
   return labels[difficulty];
+}
+
+function Field({ defaultValue, label, name, required = false }: { defaultValue: string; label: string; name: string; required?: boolean }) {
+  return (
+    <label className="space-y-2 text-sm font-medium text-slate-700">
+      <span>{label}</span>
+      <input className="w-full rounded-xl border border-slate-300 px-4 py-3" defaultValue={defaultValue} name={name} required={required} />
+    </label>
+  );
 }

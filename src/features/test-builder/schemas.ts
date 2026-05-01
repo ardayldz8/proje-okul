@@ -11,4 +11,7 @@ export const testFormSchema = z.object({
   questionIds: z.array(z.string()).min(1, "En az bir soru secilmelidir."),
 });
 
+export const testUpdateSchema = testFormSchema.omit({ questionIds: true });
+
 export type TestFormInput = z.infer<typeof testFormSchema>;
+export type TestUpdateInput = z.infer<typeof testUpdateSchema>;

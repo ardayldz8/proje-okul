@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { Advertisement } from "@/components/advertisement";
 import { getActiveCourses } from "@/features/courses/queries";
 
 export const dynamic = "force-dynamic";
@@ -30,9 +31,7 @@ export default async function OnlineTestPage() {
           <div className="rounded-2xl border border-slate-200 bg-white p-8 text-slate-600">Su anda aktif ders bulunmuyor.</div>
         )}
 
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">
-          Ders listesi reklam alani placeholder
-        </div>
+        <Advertisement placement="course-list" />
       </section>
     </main>
   );

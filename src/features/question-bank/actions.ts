@@ -55,6 +55,49 @@ export async function createQuestion(_prevState: QuestionActionState, formData: 
   return { message: "Soru eklendi." };
 }
 
+export async function updateQuestion(formData: FormData) {
+  const questionId = String(formData.get("questionId") ?? "");
+
+  if (!questionId) {
+    throw new Error("Soru bulunamadi.");
+  }
+
+  await assertOwnsQuestion(questionId);
+
+  const parsed = questionFormSchema.safeParse({
+    courseId: formData.get("courseId"),
+    questionText: formData.get("questionText"),
+    optionA: formData.get("optionA"),
+    optionB: formData.get("optionB"),
+    optionC: formData.get("optionC"),
+    optionD: formData.get("optionD"),
+    correctOption: formData.get("correctOption"),
+    difficulty: formData.get("difficulty"),
+    topic: formData.get("topic") || undefined,
+    explanation: formData.get("explanation") || undefined,
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Soru bilgilerini kontrol edin.");
+  }
+
+  const course = await db.course.findFirst({
+    where: { id: parsed.data.courseId, isActive: true },
+    select: { id: true },
+  });
+
+  if (!course) {
+    throw new Error("Secilen ders bulunamadi.");
+  }
+
+  await db.question.update({
+    where: { id: questionId },
+    data: parsed.data,
+  });
+
+  revalidatePath("/teacher/questions");
+}
+
 export async function deactivateQuestion(formData: FormData) {
   const questionId = String(formData.get("questionId") ?? "");
 

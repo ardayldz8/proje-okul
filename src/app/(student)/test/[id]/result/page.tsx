@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { Advertisement } from "@/components/advertisement";
 import { getAttemptResult } from "@/features/student-test/queries";
 
 export const dynamic = "force-dynamic";
@@ -32,7 +33,7 @@ export default async function TestResultPage({ params }: TestResultPageProps) {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-6 text-sm text-slate-500">Sonuc sayfasi reklam alani placeholder</div>
+        <Advertisement placement="result" />
 
         <div className="space-y-4">
           {result.answers.map((answer, index) => (

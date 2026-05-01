@@ -5,11 +5,32 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/password";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
 });
+
+function getHeader(headers: Record<string, string | string[] | undefined> | undefined, key: string) {
+  const value = headers?.[key];
+
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+
+  return value;
+}
+
+function getRequestIp(headers: Record<string, string | string[] | undefined> | undefined) {
+  const forwardedFor = getHeader(headers, "x-forwarded-for");
+
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
+  }
+
+  return getHeader(headers, "x-real-ip") ?? "unknown";
+}
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db),
@@ -26,10 +47,16 @@ export const authOptions: NextAuthOptions = {
         email: { label: "E-posta", type: "email" },
         password: { label: "Sifre", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, request) {
         const parsed = credentialsSchema.safeParse(credentials);
 
         if (!parsed.success) {
+          return null;
+        }
+
+        const rateLimit = await checkRateLimit("teacherLogin", `${parsed.data.email.toLowerCase()}:${getRequestIp(request.headers)}`);
+
+        if (!rateLimit.success) {
           return null;
         }
 

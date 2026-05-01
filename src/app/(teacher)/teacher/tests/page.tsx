@@ -1,6 +1,6 @@
 import { TestStatus } from "@prisma/client";
 
-import { updateTestStatus } from "@/features/test-builder/actions";
+import { updateTest, updateTestStatus } from "@/features/test-builder/actions";
 import { TestForm } from "@/features/test-builder/components/test-form";
 import { getTeacherTestBuilderData } from "@/features/test-builder/queries";
 import { requireTeacher } from "@/lib/authorization";
@@ -60,6 +60,49 @@ export default async function TeacherTestsPage() {
                       </button>
                     </form>
                   </div>
+
+                  <details className="mt-5 rounded-2xl bg-slate-50 p-4">
+                    <summary className="cursor-pointer text-sm font-semibold text-slate-700">Testi Duzenle</summary>
+                    <form action={updateTest} className="mt-4 space-y-4">
+                      <input name="testId" type="hidden" value={test.id} />
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <Field defaultValue={test.title} label="Test adi" name="title" required />
+                        <label className="space-y-2 text-sm font-medium text-slate-700">
+                          <span>Ders</span>
+                          <select className="w-full rounded-xl border border-slate-300 px-4 py-3" defaultValue={test.courseId} name="courseId" required>
+                            {courses.map((course) => (
+                              <option key={course.id} value={course.id}>
+                                {course.title}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <Field defaultValue={test.durationMinutes?.toString() ?? ""} label="Sure (dakika)" name="durationMinutes" type="number" />
+                      </div>
+                      <label className="space-y-2 text-sm font-medium text-slate-700">
+                        <span>Aciklama</span>
+                        <textarea className="min-h-20 w-full rounded-xl border border-slate-300 px-4 py-3" defaultValue={test.description ?? ""} name="description" />
+                      </label>
+                      <div className="grid gap-4 md:grid-cols-2">
+                        <label className="space-y-2 text-sm font-medium text-slate-700">
+                          <span>Durum</span>
+                          <select className="w-full rounded-xl border border-slate-300 px-4 py-3" defaultValue={test.status} name="status" required>
+                            <option value={TestStatus.DRAFT}>Taslak</option>
+                            <option value={TestStatus.ACTIVE}>Aktif</option>
+                            <option value={TestStatus.ARCHIVED}>Arsiv</option>
+                          </select>
+                        </label>
+                        <label className="flex items-center gap-3 self-end rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700">
+                          <input defaultChecked={test.showResultImmediately} name="showResultImmediately" type="checkbox" />
+                          Sonucu aninda goster
+                        </label>
+                      </div>
+                      <p className="text-xs text-slate-500">Not: Test sorulari bu formdan degismez. Mevcut sonuc kayitlarini bozmamak icin soru seti ayri akista yonetilmelidir.</p>
+                      <button className="rounded-full bg-indigo-950 px-5 py-3 text-sm font-semibold text-white" type="submit">
+                        Degisiklikleri Kaydet
+                      </button>
+                    </form>
+                  </details>
                 </article>
               ))}
             </div>
@@ -78,4 +121,13 @@ function formatStatus(status: TestStatus) {
     [TestStatus.ACTIVE]: "Aktif",
     [TestStatus.ARCHIVED]: "Arsiv",
   }[status];
+}
+
+function Field({ defaultValue, label, name, required = false, type = "text" }: { defaultValue: string; label: string; name: string; required?: boolean; type?: string }) {
+  return (
+    <label className="space-y-2 text-sm font-medium text-slate-700">
+      <span>{label}</span>
+      <input className="w-full rounded-xl border border-slate-300 px-4 py-3" defaultValue={defaultValue} name={name} required={required} type={type} />
+    </label>
+  );
 }

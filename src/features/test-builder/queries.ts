@@ -29,6 +29,7 @@ export async function getTeacherTestBuilderData(teacherId: string) {
         status: true,
         showResultImmediately: true,
         createdAt: true,
+        courseId: true,
         course: { select: { title: true } },
         _count: { select: { testQuestions: true, attempts: true } },
       },

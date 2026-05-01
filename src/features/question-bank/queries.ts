@@ -32,6 +32,8 @@ export async function getTeacherQuestionBank(teacherId: string, filters: Questio
         optionC: true,
         optionD: true,
         correctOption: true,
+        explanation: true,
+        courseId: true,
         createdAt: true,
         course: { select: { title: true } },
       },

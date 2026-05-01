@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { Advertisement } from "@/components/advertisement";
+
 export default function HomePage() {
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-8 text-slate-950">
@@ -21,9 +23,7 @@ export default function HomePage() {
           </Link>
         </div>
 
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-          Reklam alani placeholder
-        </div>
+        <Advertisement placement="home" />
       </section>
     </main>
   );

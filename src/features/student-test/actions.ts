@@ -1,12 +1,25 @@
 "use server";
 
 import { TestStatus } from "@prisma/client";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { studentAttemptStartSchema, studentStartSchema } from "@/features/student-test/schemas";
 import { calculateTestResult } from "@/features/student-test/scoring";
 import { db } from "@/lib/db";
 import { createStudentTestOtp, verifyStudentTestOtp } from "@/lib/otp";
+import { checkRateLimit } from "@/lib/rate-limit";
+
+async function getClientIp() {
+  const headerList = await headers();
+  const forwardedFor = headerList.get("x-forwarded-for");
+
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() ?? "unknown";
+  }
+
+  return headerList.get("x-real-ip") ?? "unknown";
+}
 
 export type RequestOtpState = {
   ok?: boolean;
@@ -30,6 +43,12 @@ export async function requestStudentOtp(_prevState: RequestOtpState, formData: F
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Form bilgilerini kontrol edin." };
+  }
+
+  const rateLimit = await checkRateLimit("otp", parsed.data.email.toLowerCase());
+
+  if (!rateLimit.success) {
+    return { error: "Cok fazla kod istendi. Lutfen birkac dakika sonra tekrar deneyin." };
   }
 
   const result = await createStudentTestOtp(parsed.data.email);
@@ -62,6 +81,12 @@ export async function startStudentAttempt(_prevState: StartAttemptState, formDat
 
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Form bilgilerini kontrol edin." };
+  }
+
+  const rateLimit = await checkRateLimit("testStart", await getClientIp());
+
+  if (!rateLimit.success) {
+    return { error: "Cok fazla test baslatma denemesi yapildi. Lutfen kisa bir sure sonra tekrar deneyin." };
   }
 
   const otpResult = await verifyStudentTestOtp(parsed.data.email, parsed.data.otpCode);

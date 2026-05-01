@@ -3,7 +3,7 @@
 import { TestStatus } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
-import { testFormSchema } from "@/features/test-builder/schemas";
+import { testFormSchema, testUpdateSchema } from "@/features/test-builder/schemas";
 import { assertOwnsTest, requireTeacher } from "@/lib/authorization";
 import { db } from "@/lib/db";
 
@@ -82,6 +82,61 @@ export async function updateTestStatus(formData: FormData) {
   await db.test.update({
     where: { id: testId },
     data: { status: status as TestStatus },
+  });
+
+  revalidatePath("/teacher/tests");
+}
+
+export async function updateTest(formData: FormData) {
+  const testId = String(formData.get("testId") ?? "");
+
+  if (!testId) {
+    throw new Error("Test bulunamadi.");
+  }
+
+  await assertOwnsTest(testId);
+
+  const parsed = testUpdateSchema.safeParse({
+    title: formData.get("title"),
+    description: formData.get("description") || undefined,
+    courseId: formData.get("courseId"),
+    durationMinutes: formData.get("durationMinutes") ?? "",
+    status: formData.get("status"),
+    showResultImmediately: formData.get("showResultImmediately") === "on",
+  });
+
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Test bilgilerini kontrol edin.");
+  }
+
+  const session = await requireTeacher();
+  const course = await db.course.findFirst({
+    where: { id: parsed.data.courseId, isActive: true },
+    select: { id: true },
+  });
+
+  if (!course || !session.user.profileId) {
+    throw new Error("Test guncellenemedi.");
+  }
+
+  const hasForeignCourseQuestion = await db.testQuestion.findFirst({
+    where: {
+      testId,
+      question: {
+        ownerTeacherId: session.user.profileId,
+        courseId: { not: parsed.data.courseId },
+      },
+    },
+    select: { id: true },
+  });
+
+  if (hasForeignCourseQuestion) {
+    throw new Error("Testteki sorular farkli derse ait oldugu icin ders degistirilemez.");
+  }
+
+  await db.test.update({
+    where: { id: testId },
+    data: parsed.data,
   });
 
   revalidatePath("/teacher/tests");
