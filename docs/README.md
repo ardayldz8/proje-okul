@@ -108,27 +108,29 @@ Seed calistirildiginda varsayilan hesaplar olusturulur:
 
 - `src/app`: Next.js route ve sayfalari
 - `src/features`: Ozellik bazli is mantigi, formlar ve sorgular
-- `src/lib`: Prisma client, auth, OTP, yetkilendirme ve yardimci fonksiyonlar
+- `src/lib`: Prisma client, auth, ogrenci session, yetkilendirme ve yardimci fonksiyonlar
 - `src/types`: Ortak TypeScript tipleri
 - `prisma`: Prisma schema ve seed dosyasi
-- `ROADMAP_PROGRESS.md`: Guncel proje durumu, tamamlanan isler, kalan isler ve backend dokumantasyonu
+- `docs/ROADMAP_PROGRESS.md`: Guncel proje durumu, tamamlanan isler ve kalan isler
+- `docs/BACKEND.md`: Backend mimarisi, veri modeli, auth, deployment ve risk notlari
+- `docs/FRONTEND.md`: Frontend mimarisi, route haritasi, component yapisi ve UI borclari
 
 ## Bilinen Notlar
 
-- Gercek Neon, Resend ve Upstash anahtarlari deployment oncesi tanimlanmalidir.
+- Production icin Neon, Resend ve Upstash environment variable'lari deployment oncesi kontrol edilmelidir.
 - `npm install` 9 moderate audit uyarisi verebilir; breaking update icerebilecegi icin `npm audit fix --force` dogrudan calistirilmamalidir.
-- Upstash rate limiting entegrasyonu OTP, test baslatma ve hoca login akislari icin vardir. Upstash env placeholder veya eksikse lokal gelistirme fail-open devam eder.
+- Upstash rate limiting entegrasyonu ogrenci girisi, test baslatma ve hoca login akislari icin vardir. Upstash env placeholder veya eksikse lokal gelistirme fail-open devam eder.
 
 ## Deployment Kontrol Listesi
 
 1. Neon uzerinde PostgreSQL veritabani olustur.
-2. Vercel veya hedef ortamda `.env.example` icindeki tum environment variable'lari gercek degerlerle tanimla.
+2. Netlify veya hedef ortamda `.env.example` icindeki tum environment variable'lari gercek degerlerle tanimla.
 3. `DATABASE_URL` ve `DIRECT_URL` degerlerini SSL zorunlu olacak sekilde kontrol et.
 4. `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, `AUTH_SECRET` ve `AUTH_URL` degerlerini production domain ile uyumlu yap.
 5. `RESEND_API_KEY` degerini gercek Resend anahtariyla degistir.
 6. `UPSTASH_REDIS_REST_URL` ve `UPSTASH_REDIS_REST_TOKEN` degerlerini gercek Upstash Redis bilgileriyle degistir.
-7. `npm run db:migrate` ile ilk migration'i calistir.
-8. `npm run db:seed` ile demo/admin verisini olustur.
+7. Belirlenen migration stratejisine gore veritabani schema'sini uygula. Mevcut Neon schema ilk olarak MCP workflow'u ile uygulanmistir; repo ici `prisma/migrations` gecmisi henuz yoktur.
+8. `npm run db:seed` ile demo/admin verisini olustur veya mevcut seed verisini dogrula.
 9. `npm run typecheck`, `npm run lint`, `npm run test` ve `npm run build` komutlarini production env ile tekrar calistir.
 10. Ogrenci, hoca ve admin akisini tarayicida manuel test et.
 
@@ -139,15 +141,15 @@ Ogrenci akisi:
 1. Ana sayfadan `Online Teste Basla` butonuna git.
 2. Aktif ders listesini gor.
 3. Aktif testi olan dersi sec.
-4. Ogrenci bilgilerini ve onay kutularini doldur.
-5. OTP kodunu iste ve dogrula.
+4. `/student/login` ekraninda kayit ol veya giris yap.
+5. Test baslangic ekraninda onay kutularini doldur.
 6. Testi baslat, cevaplari isaretle ve tamamla.
 7. Sonuc ekrani, puan ve cevap detaylarini kontrol et.
-8. Ayni e-posta ile ayni testi tekrar baslatmanin engellendigini kontrol et.
+8. Ayni ogrenci hesabi ile ayni testi tekrar baslatmanin engellendigini kontrol et.
 
 Hoca akisi:
 
-1. Demo hoca ile `/teacher/login` uzerinden giris yap.
+1. `/teacher/login` uzerinden demo hoca ile giris yap veya yeni hoca hesabi kaydet.
 2. Dashboard istatistiklerinin geldigini kontrol et.
 3. Soru ekle, duzenle ve pasife al.
 4. Test olustur, durumunu degistir ve duzenle.

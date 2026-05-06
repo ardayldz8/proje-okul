@@ -16,9 +16,10 @@ export function TestForm({ courses, questions }: { courses: CourseOption[]; ques
   const filteredQuestions = useMemo(() => questions.filter((question) => question.courseId === courseId), [courseId, questions]);
 
   return (
-    <form action={formAction} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+    <form action={formAction} className="space-y-4 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
       <div>
-        <h2 className="text-xl font-bold text-slate-950">Yeni Test Olustur</h2>
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-700">Test olusturma</p>
+        <h2 className="mt-2 text-2xl font-black text-slate-950">Yeni Test Olustur</h2>
         <p className="mt-1 text-sm text-slate-600">Sadece kendi aktif sorularinizdan test olusturabilirsiniz.</p>
       </div>
 
@@ -62,7 +63,7 @@ export function TestForm({ courses, questions }: { courses: CourseOption[]; ques
         <div className="mt-4 max-h-80 space-y-3 overflow-y-auto pr-2">
           {filteredQuestions.length > 0 ? (
             filteredQuestions.map((question) => (
-              <label key={question.id} className="flex gap-3 rounded-xl border border-slate-200 p-3 text-sm text-slate-700">
+              <label key={question.id} className="flex gap-3 rounded-xl border border-slate-200 p-3 text-sm text-slate-700 transition hover:border-teal-300 hover:bg-slate-50">
                 <input name="questionIds" type="checkbox" value={question.id} />
                 <span>
                   <strong>{formatDifficulty(question.difficulty)}:</strong> {question.questionText}
@@ -78,7 +79,7 @@ export function TestForm({ courses, questions }: { courses: CourseOption[]; ques
       {state.error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</p> : null}
       {state.message ? <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{state.message}</p> : null}
 
-      <button className="rounded-full bg-indigo-950 px-5 py-3 font-semibold text-white disabled:opacity-60" disabled={isPending} type="submit">
+      <button className="rounded-2xl bg-indigo-950 px-5 py-3 font-bold text-white transition hover:bg-indigo-900 disabled:opacity-60" disabled={isPending} type="submit">
         {isPending ? "Olusturuluyor..." : "Test Olustur"}
       </button>
     </form>

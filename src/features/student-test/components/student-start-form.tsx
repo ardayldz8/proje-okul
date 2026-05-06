@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 
-import { requestStudentOtp, startStudentAttempt, type RequestOtpState, type StartAttemptState } from "@/features/student-test/actions";
+import { startStudentAttempt, type StartAttemptState } from "@/features/student-test/actions";
 
 type TeacherOption = {
   id: string;
@@ -12,56 +12,65 @@ type TeacherOption = {
 type StudentStartFormProps = {
   testId: string;
   teachers: TeacherOption[];
+  student: {
+    fullName: string;
+    email: string;
+    gradeLevel: string;
+    schoolName: string | null;
+  };
 };
 
-const initialState: RequestOtpState = {};
 const initialStartState: StartAttemptState = {};
 
-export function StudentStartForm({ testId, teachers }: StudentStartFormProps) {
-  const [otpState, requestOtpAction, isOtpPending] = useActionState(requestStudentOtp, initialState);
+export function StudentStartForm({ testId, teachers, student }: StudentStartFormProps) {
   const [startState, startAttemptAction, isStartPending] = useActionState(startStudentAttempt, initialStartState);
 
   return (
-    <form className="mt-8 space-y-5">
+    <form className="mt-8 space-y-6">
       <input name="testId" type="hidden" value={testId} />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <Field label="Ad soyad" name="fullName" placeholder="Adiniz soyadiniz" required />
-        <Field label="E-posta" name="email" placeholder="ornek@mail.com" required type="email" />
-        <Field label="Telefon" name="phone" placeholder="Opsiyonel" />
-        <Field label="Sinif seviyesi" name="gradeLevel" placeholder="8. Sinif" required />
-        <Field label="Okul" name="schoolName" placeholder="Opsiyonel" />
+      <section className="rounded-[2rem] border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-700">Ogrenci Bilgileri</p>
+        <h3 className="mt-2 text-xl font-black text-slate-950">Kayitli hesap</h3>
 
-        <label className="space-y-2 text-sm font-medium text-slate-700">
-          <span>Bagli oldugu hoca</span>
-          <select className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none ring-teal-700 transition focus:ring-2" name="teacherId">
-            <option value="">Secilmedi</option>
-            {teachers.map((teacher) => (
-              <option key={teacher.id} value={teacher.id}>
-                {teacher.fullName}
-              </option>
-            ))}
-          </select>
-        </label>
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
+          <Info label="Ad soyad" value={student.fullName} />
+          <Info label="E-posta" value={student.email} />
+          <Info label="Sinif seviyesi" value={student.gradeLevel} />
+          <Info label="Okul" value={student.schoolName ?? "-"} />
+
+          <label className="space-y-2 text-sm font-bold text-slate-700 md:col-span-2">
+            <span>Bagli oldugu hoca</span>
+            <select className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3.5 text-slate-950 outline-none ring-teal-700 transition focus:ring-2" name="teacherId">
+              <option value="">Secilmedi</option>
+              {teachers.map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {teacher.fullName}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs font-medium text-slate-500">Sistemde aktif olan hocalar listelenir. Secim opsiyoneldir.</p>
+          </label>
+        </div>
+      </section>
+
+      <section className="rounded-[2rem] border border-slate-200 bg-slate-50 p-5 md:p-6">
+        <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-700">Onaylar</p>
+        <h3 className="mt-2 text-xl font-black text-slate-950">Yasal dogrulama</h3>
+
+        <fieldset className="mt-5 space-y-3 text-sm text-slate-700">
+          <Checkbox label="KVKK Aydinlatma Metni'ni okudum ve onayliyorum." name="kvkkAccepted" />
+          <Checkbox label="Gizlilik Politikasi'ni okudum ve onayliyorum." name="privacyAccepted" />
+          <Checkbox label="Kullanim Kosullari'ni okudum ve onayliyorum." name="termsAccepted" />
+        </fieldset>
+      </section>
+
+      <div aria-live="polite" className="space-y-3">
+        {startState.error ? <p className="rounded-2xl bg-red-50 px-4 py-3 text-sm text-red-700">{startState.error}</p> : null}
       </div>
 
-      <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-        <Checkbox label="KVKK Aydinlatma Metni'ni okudum ve onayliyorum." name="kvkkAccepted" />
-        <Checkbox label="Gizlilik Politikasi'ni okudum ve onayliyorum." name="privacyAccepted" />
-        <Checkbox label="Kullanim Kosullari'ni okudum ve onayliyorum." name="termsAccepted" />
-      </div>
-
-      <Field label="Dogrulama kodu" name="otpCode" placeholder="6 haneli kod" />
-
-      {otpState.error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{otpState.error}</p> : null}
-      {otpState.message ? <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{otpState.message}</p> : null}
-      {startState.error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{startState.error}</p> : null}
-
-      <div className="grid gap-3 sm:grid-cols-2">
-        <button className="rounded-full border border-slate-300 px-5 py-3 font-semibold text-slate-900 disabled:cursor-not-allowed disabled:opacity-60" disabled={isOtpPending || isStartPending} formAction={requestOtpAction} type="submit">
-          {isOtpPending ? "Kod gonderiliyor..." : "Dogrulama Kodu Gonder"}
-        </button>
-        <button className="rounded-full bg-indigo-950 px-5 py-3 font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60" disabled={isOtpPending || isStartPending} formAction={startAttemptAction} type="submit">
+      <div className="grid gap-3">
+        <button className="rounded-2xl bg-indigo-950 px-5 py-3.5 font-bold text-white transition hover:bg-indigo-900 disabled:cursor-not-allowed disabled:opacity-60" disabled={isStartPending} formAction={startAttemptAction} type="submit">
           {isStartPending ? "Test baslatiliyor..." : "Testi Baslat"}
         </button>
       </div>
@@ -69,20 +78,20 @@ export function StudentStartForm({ testId, teachers }: StudentStartFormProps) {
   );
 }
 
-function Field({ label, name, placeholder, required = false, type = "text" }: { label: string; name: string; placeholder: string; required?: boolean; type?: string }) {
+function Info({ label, value }: { label: string; value: string }) {
   return (
-    <label className="space-y-2 text-sm font-medium text-slate-700">
-      <span>{label}</span>
-      <input className="w-full rounded-xl border border-slate-300 bg-white px-4 py-3 outline-none ring-teal-700 transition focus:ring-2" name={name} placeholder={placeholder} required={required} type={type} />
-    </label>
+    <div className="rounded-2xl bg-slate-50 p-4">
+      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{label}</p>
+      <p className="mt-2 font-bold text-slate-900">{value}</p>
+    </div>
   );
 }
 
 function Checkbox({ label, name }: { label: string; name: string }) {
   return (
-    <label className="flex gap-3">
-      <input className="mt-1 size-4 rounded border-slate-300" name={name} type="checkbox" />
-      <span>{label}</span>
+    <label className="flex gap-3 rounded-2xl bg-white px-4 py-3 shadow-sm">
+      <input className="mt-1 size-4 rounded border-slate-300 text-teal-700 focus:ring-teal-700" name={name} type="checkbox" />
+      <span className="leading-6">{label}</span>
     </label>
   );
 }

@@ -12,16 +12,17 @@ Bu dosya, projenin guncel karar, ilerleme, backend durum ve kalan is takip dokum
 
 ## Durum Ozeti
 
-- Genel durum: MVP gelistirme devam ediyor
-- Aktif faz: Faz 8 - Reklam Alanlari / Faz 9'a hazirlik
-- Aktif sorumluluk alani: Arda - kalan backend/admin/deployment isleri, Emir - reklam/yasal sayfa/final UI isleri
-- Son guncelleme: 2026-05-01
+- Genel durum: MVP backend altyapisi buyuk olcude tamamlandi, manuel test ve deploy hazirligi devam ediyor
+- Aktif faz: Faz 9 - Deployment / manuel dogrulama hazirligi
+- Aktif sorumluluk alani: Arda - manuel test, deploy env ve migration stratejisi; Emir - reklam/yasal sayfa/final UI isleri
+- Son guncelleme: 2026-05-06
 
 Guncel not:
 
-- Kod tabani Faz 7 kapsaminda hoca sonuc ve ogrenci takip sayfalarina kadar ilerlemis durumda.
-- Backend tarafinda proje omurgasi, auth, ogrenci test akisi, soru havuzu, test olusturma, sonuc hesaplama ve hoca takip sorgulari buyuk olcude tamamlandi.
-- Bundan sonraki ana odak, gercek veritabani/deployment ve manuel testlerle yayina hazirliktir.
+- Kod tabani hoca/admin/ogrenci ana MVP backend akislarina kadar ilerlemis durumda.
+- Backend tarafinda proje omurgasi, auth, ogrenci test akisi, soru havuzu, test olusturma, sonuc hesaplama, hoca takip sorgulari, admin CRUD akislarinin ana govdesi ve Neon baglantisi tamamlandi.
+- Bundan sonraki ana odak, manuel tarayici testleri, production env kontrolleri ve repo ici Prisma migration stratejisidir.
+- Guncel ogrenci akisi artik OTP veya uyeliksiz test baslatma kullanmaz; ogrenci kayit/giris ve dashboard odakli modele gecildi.
 
 ## Backend Durum Dokumantasyonu
 
@@ -35,7 +36,9 @@ Bu bolum Arda'nin teknik/backend sorumluluklari icin guncel biten-kalan durumunu
 - Prisma Client, `@prisma/adapter-neon` ile ortak `src/lib/db.ts` uzerinden kullaniliyor.
 - Lokal Node.js surumu Prisma 7 ile uyumlu hale getirildi: `20.20.2`.
 - Lokal `.env` placeholder degerlerle olusturuldu; dosya `.gitignore` kapsaminda.
-- `README.md` ile kurulum, env, Prisma, seed, gelistirme ve dogrulama komutlari dokumante edildi.
+- `docs/README.md` ile kurulum, env, Prisma, seed, gelistirme ve dogrulama komutlari dokumante edildi.
+- `docs/BACKEND.md` ile backend mimarisi, veri modeli, auth, OTP, deployment ve bilinen riskler dokumante edildi.
+- `docs/FRONTEND.md` ile frontend mimarisi, route haritasi, component yapisi ve UI borclari dokumante edildi.
 
 ### Veri Modeli Durumu
 
@@ -45,7 +48,8 @@ Bu bolum Arda'nin teknik/backend sorumluluklari icin guncel biten-kalan durumunu
 - Tekrar deneme kontrolu icin `TestAttempt` uzerinde `(testId, studentId)` unique constraint var.
 - Hoca-ogrenci eslestirme icin `TeacherStudent` modeli var.
 - Reklamlar icin `Ad` modeli var. MVP icin statik reklam componenti eklendi.
-- Gercek veritabani migration'i henuz calistirilmadi; bunun icin gercek `DATABASE_URL` gerekiyor.
+- Gercek Neon veritabanina ilk schema uygulandi ve seed verisi dogrulandi.
+- Repository icinde henuz `prisma/migrations` gecmisi yok; bundan sonraki schema degisiklikleri icin migration stratejisi netlestirilmeli.
 
 ### Auth ve Yetkilendirme Durumu
 
@@ -69,7 +73,8 @@ Bu bolum Arda'nin teknik/backend sorumluluklari icin guncel biten-kalan durumunu
 - OTP dogrulamasi sonrasi `students` tablosunda e-posta ile upsert yapiliyor.
 - Test attempt transaction icinde olusturuluyor.
 - Ayni ogrencinin ayni testi tekrar cozmesi unique constraint ile engelleniyor.
-- Kalan: Test baslatma ve OTP akisi gercek Resend/DB ile manuel test edilmeli.
+- Ogrenci formundan gelen hoca secimi backend tarafinda aktif `TEACHER` profili olarak tekrar dogrulaniyor.
+- Kalan: Test baslatma ve OTP akisi gercek DB ile tarayicida manuel test edilmeli; production icin gercek Resend ayari gerekli.
 - OTP ve test baslatma icin Upstash rate limiting entegre edildi. Upstash env yoksa lokal gelistirmeyi bozmamak icin fail-open calisir.
 
 ### Test Cozme ve Sonuc Hesaplama Durumu
@@ -104,7 +109,7 @@ Bu bolum Arda'nin teknik/backend sorumluluklari icin guncel biten-kalan durumunu
 - Tanimli ogrenciler query'si yazildi.
 - `/teacher/results` ve `/teacher/students` gercek veriye baglandi.
 - Tekil sonuc detay goruntuleme akisi tamamlandi; query teacher ownership filtresiyle calisiyor.
-- Kalan: Hoca-ogrenci eslestirme yonetimi icin admin/hoca tarafinda CRUD akisi tamamlanmali.
+- Kalan: Hoca-ogrenci eslestirme akisi tarayicida manuel test edilmeli.
 
 ### Admin Backend Durumu
 
@@ -115,15 +120,15 @@ Bu bolum Arda'nin teknik/backend sorumluluklari icin guncel biten-kalan durumunu
 - Admin paneli ders olusturma/guncelleme akislari gercek server action'lara baglandi.
 - Admin paneli hoca-ogrenci eslestirme olusturma/kaldirma akislari gercek server action'lara baglandi.
 - Admin paneli hoca, ders, ogrenci ve eslestirme listelerini gercek veriden okuyor.
-- Kalan: Admin akisi manuel test edilmedi.
+- Kalan: Admin akisi tarayicida manuel test edilmeli.
 
 ### Servis ve Entegrasyon Durumu
 
 - Resend OTP gonderimi icin entegre edildi; production icin gercek `RESEND_API_KEY` gerekiyor.
 - Upstash paketleri kurulu ve rate limiting icin kullaniliyor.
 - Upstash Redis + `@upstash/ratelimit` ile OTP, test baslatma ve hoca login rate limiting kodu yazildi.
-- Kalan: Gercek Neon baglantisi, migration ve seed dogrulamasi yapilmadi.
-- Kalan: Vercel env listesi production icin kontrol edilmedi.
+- Neon baglantisi, migration ve seed dogrulamasi yapildi.
+- Kalan: Netlify env listesi production icin kontrol edilmeli.
 
 ### Dogrulanan Komutlar
 
@@ -133,13 +138,14 @@ Bu bolum Arda'nin teknik/backend sorumluluklari icin guncel biten-kalan durumunu
 - `npm run lint`: Basarili.
 - `npm run test`: Basarili, 2 test gecti.
 - `npm run build`: Basarili.
+- `npx prisma validate`: Basarili.
+- `npx prisma generate`: Basarili.
 
 ### Backend Kapanis Icin Kalan Arda Isleri
 
-- Gercek `DATABASE_URL` ile ilk Prisma migration'i calistir.
-- Seed verisini gercek veritabaninda dogrula.
+- Repo icinde Prisma migration gecmisi stratejisini belirle.
 - Auth env isimlerini deployment hedefiyle uyumlu hale getir.
-- Vercel env listesini ve deployment ayarlarini kontrol et.
+- Netlify env listesini ve deployment ayarlarini kontrol et.
 - Npm audit uyarilarini takip et; mevcut fix onerileri breaking downgrade icerdigi icin otomatik `--force` uygulanmadi.
 - Ogrenci, hoca ve admin akisini gercek DB ile manuel test et.
 
@@ -158,8 +164,8 @@ Durum: Tamamlandi
 
 Notlar:
 
-- Guncel tek takip dokumani: `ROADMAP_PROGRESS.md`
-- Kurulum ve calistirma dokumani: `README.md`
+- Guncel tek takip dokumani: `docs/ROADMAP_PROGRESS.md`
+- Kurulum ve calistirma dokumani: `docs/README.md`
 
 ### Faz 1: Proje Iskeleti ve Ana Sayfa
 
@@ -283,13 +289,14 @@ Durum: Kismen basladi
 - [ ] Ogrenci akisi manuel test edildi.
 - [ ] Hoca akisi manuel test edildi.
 - [ ] Admin akisi manuel test edildi.
-- [ ] Vercel env listesi son kontrol edildi.
-- [x] `README.md` kurulum ve calistirma dokumani hazirlandi.
+- [ ] Netlify env listesi son kontrol edildi.
+- [x] `docs/README.md` kurulum ve calistirma dokumani hazirlandi.
 - [x] Node.js surumu Prisma 7 ile uyumlu hale getirildi.
-- [ ] Ilk migration gercek veritabani uzerinde calistirildi.
-- [ ] Seed/demo veri gercek veritabani uzerinde dogrulandi.
+- [x] Ilk migration gercek veritabani uzerinde calistirildi.
+- [x] Seed/demo veri gercek veritabani uzerinde dogrulandi.
 - [x] Deployment ve manuel test kontrol listesi dokumante edildi.
 - [x] Npm audit uyarilari incelendi.
+- [x] Frontend teknik dokumantasyonu hazirlandi.
 
 ## Uygulama Gunlugu
 
@@ -300,7 +307,7 @@ Durum: Kismen basladi
 - Arda gorevleri detayli todo listesine bolundu.
 - Proje uygulamasina baslandi.
 - Repo kontrol edildi. Baslangicta sadece `.git`, eski urun karar dokumani ve PDF ciktisi oldugu goruldu.
-- `ROADMAP_PROGRESS.md` olusturuldu.
+- `docs/ROADMAP_PROGRESS.md` olusturuldu.
 - NPM proje altyapisi baslatildi.
 - Next.js 16, React 19, TypeScript, Tailwind CSS v4 ve temel shadcn/ui yardimci bagimliliklari kuruldu.
 - `src/app` tabanli App Router iskeleti olusturuldu.
@@ -369,7 +376,7 @@ Durum: Kismen basladi
 - `/teacher/results` placeholder sayfasi tamamlanan denemeleri listeleyen tabloya baglandi.
 - `/teacher/students` placeholder sayfasi tanimli ogrenci kartlari ve son test ozetiyle gercek veriye baglandi.
 - `npm run typecheck`, `npm run lint`, `npm run test` ve `npm run build` guncel durumda basarili calisti.
-- `README.md` eklendi; kurulum, env, Prisma, seed, gelistirme ve dogrulama komutlari dokumante edildi.
+- `docs/README.md` eklendi; kurulum, env, Prisma, seed, gelistirme ve dogrulama komutlari dokumante edildi.
 - Soru duzenleme action'i eklendi ve `/teacher/questions` listesindeki inline duzenleme formuna baglandi.
 - Test duzenleme action'i eklendi ve `/teacher/tests` listesindeki inline duzenleme formuna baglandi.
 - Test duzenleme kapsaminda mevcut sonuc kayitlarini bozmamak icin soru seti degistirme eklenmedi; baslik, aciklama, ders, sure, durum ve sonucu aninda goster ayarlari duzenlenebilir.
@@ -391,10 +398,10 @@ Durum: Kismen basladi
 - `/iletisim`, `/gizlilik-politikasi`, `/kvkk` ve `/kullanim-kosullari` sayfalari eklendi.
 - Reklam/yasal sayfa degisiklikleri sonrasi `npm run typecheck`, `npm run lint`, `npm run test` ve `npm run build` basarili calisti.
 - `.env.example` NextAuth production degiskenleriyle guncellendi.
-- `README.md` icine deployment kontrol listesi ve manuel test senaryolari eklendi.
+- `docs/README.md` icine deployment kontrol listesi ve manuel test senaryolari eklendi.
 - `npm audit --audit-level moderate` calistirildi. 9 moderate uyari var; onerilen `npm audit fix --force` Prisma/Next/NextAuth icin breaking downgrade getirdigi icin uygulanmadi.
 - Emir'in kafasinin karismamasi icin eski uzun karar dokumani ve PDF ciktisi repodan kaldirildi.
-- Guncel dokuman yapisi sadeleştirildi: `README.md` kurulum icin, `ROADMAP_PROGRESS.md` durum ve kalan is takibi icin kullanilir.
+- Guncel dokuman yapisi sadeleştirildi: `docs/README.md` kurulum icin, `docs/ROADMAP_PROGRESS.md` durum ve kalan is takibi icin kullanilir.
 
 ## Karar Kayitlari
 
@@ -430,21 +437,21 @@ Durum: Kismen basladi
 
 ## Acik Riskler ve Notlar
 
-- Gercek Neon, Resend ve Upstash anahtarlari henuz tanimli degil.
-- `.env` dosyasi sadece lokal placeholder degerler icerir ve `.gitignore` kapsamindadir.
+- Neon baglantisi lokal `.env` icinde tanimli ve `.gitignore` kapsamindadir; connection string repoya eklenmemeli.
+- Gercek Resend ve Upstash anahtarlari production icin henuz final kontrol bekliyor.
 - KVKK, gizlilik ve kullanim kosullari sayfalari taslak olarak eklendi; yayina alinmadan once hukuki/kisisel kurum bilgileriyle final kontrol gerekir.
-- Ilk migration gercek veritabani baglantisi olmadan tamamlanamaz; lokalde schema/generate hazirlanabilir.
-- `README.md` eklendi, ancak gercek deployment env degerleri proje yayina alinmadan once tekrar kontrol edilmeli.
+- Ilk schema Neon main branch'e uygulandi; repo icinde `prisma/migrations` gecmisi henuz yok.
+- `docs/README.md`, `docs/BACKEND.md` ve `docs/FRONTEND.md` eklendi, ancak gercek deployment env degerleri proje yayina alinmadan once tekrar kontrol edilmeli.
 - `.env.example` Auth.js/NextAuth degiskenleriyle guncellendi; production degerleri deployment sirasinda gercek domain/secret ile degistirilmeli.
 - Upstash rate limiting kodu yazildi, ancak gercek Upstash anahtarlari olmadan production davranisi manuel test edilmedi.
-- `/teacher/results` ve `/teacher/students` gercek veriye baglandi; `/admin` henuz placeholder seviyesinde.
-- Hoca sonuc detay akisi ve hoca-ogrenci eslestirme yonetimi eksik.
+- `/teacher/results`, `/teacher/students` ve `/admin` gercek veriye baglandi; manuel tarayici testi bekliyor.
+- Hoca sonuc detay akisi ve admin hoca-ogrenci eslestirme yonetimi kod seviyesinde tamamlandi; manuel test bekliyor.
 - Npm audit 9 moderate uyari veriyor; `npm audit fix --force` Prisma/Next/NextAuth icin breaking downgrade onerdiği icin otomatik uygulanmadi.
 
 ## Siradaki Oncelikli Isler
 
-1. Gercek Neon veritabaniyla migration ve seed dogrulamasini yap.
-2. Vercel env listesi ve deployment ayarlarini gercek degerlerle kontrol et.
+1. Repo icinde Prisma migration gecmisi stratejisini belirle.
+2. Netlify env listesi ve deployment ayarlarini gercek degerlerle kontrol et.
 3. Ogrenci, hoca ve admin akisini gercek DB ile manuel test et.
 4. Yasal sayfalardaki placeholder kurum/e-posta bilgilerini final bilgilerle degistir.
 5. Audit uyarilari icin upstream paket guncellemelerini takip et; breaking downgrade iceren force fix uygulanmamalidir.

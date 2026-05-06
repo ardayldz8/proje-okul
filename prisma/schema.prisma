@@ -31,6 +31,7 @@ enum AttemptStatus {
 
 enum OtpPurpose {
   STUDENT_TEST_START
+  STUDENT_PORTAL_LOGIN
   PASSWORD_RESET
 }
 
@@ -115,6 +116,7 @@ model Student {
   id         String   @id @default(cuid())
   fullName   String
   email      String   @unique
+  passwordHash String?
   phone      String?
   gradeLevel String
   schoolName String?
@@ -274,12 +276,19 @@ model TestAttempt {
 }
 
 model StudentAnswer {
-  id             String   @id @default(cuid())
-  attemptId      String
-  questionId     String
-  selectedOption String?
-  isCorrect      Boolean  @default(false)
-  answeredAt     DateTime @default(now())
+  id                    String   @id @default(cuid())
+  attemptId             String
+  questionId            String
+  selectedOption        String?
+  isCorrect             Boolean  @default(false)
+  answeredAt            DateTime @default(now())
+  questionTextSnapshot  String?  @db.Text
+  optionASnapshot       String?
+  optionBSnapshot       String?
+  optionCSnapshot       String?
+  optionDSnapshot       String?
+  correctOptionSnapshot String?
+  explanationSnapshot   String?  @db.Text
 
   attempt  TestAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
   question Question    @relation(fields: [questionId], references: [id], onDelete: Restrict)

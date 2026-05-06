@@ -1,14 +1,15 @@
 "use server";
 
-import { TestStatus } from "@prisma/client";
+import { TestStatus, UserRole } from "@prisma/client";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { studentAttemptStartSchema, studentStartSchema } from "@/features/student-test/schemas";
+import { studentAttemptStartSchema } from "@/features/student-test/schemas";
 import { calculateTestResult } from "@/features/student-test/scoring";
 import { db } from "@/lib/db";
-import { createStudentTestOtp, verifyStudentTestOtp } from "@/lib/otp";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { requireStudentAttemptPermission, requireStudentSession } from "@/lib/student-session";
+import { grantStudentAttemptAccess } from "@/lib/student-attempt-access";
 
 async function getClientIp() {
   const headerList = await headers();
@@ -21,62 +22,18 @@ async function getClientIp() {
   return headerList.get("x-real-ip") ?? "unknown";
 }
 
-export type RequestOtpState = {
-  ok?: boolean;
-  message?: string;
-  error?: string;
-};
-
-export async function requestStudentOtp(_prevState: RequestOtpState, formData: FormData): Promise<RequestOtpState> {
-  const parsed = studentStartSchema.safeParse({
-    testId: formData.get("testId"),
-    fullName: formData.get("fullName"),
-    email: formData.get("email"),
-    phone: formData.get("phone") || undefined,
-    gradeLevel: formData.get("gradeLevel"),
-    schoolName: formData.get("schoolName") || undefined,
-    teacherId: formData.get("teacherId") || undefined,
-    kvkkAccepted: formData.get("kvkkAccepted"),
-    privacyAccepted: formData.get("privacyAccepted"),
-    termsAccepted: formData.get("termsAccepted"),
-  });
-
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Form bilgilerini kontrol edin." };
-  }
-
-  const rateLimit = await checkRateLimit("otp", parsed.data.email.toLowerCase());
-
-  if (!rateLimit.success) {
-    return { error: "Cok fazla kod istendi. Lutfen birkac dakika sonra tekrar deneyin." };
-  }
-
-  const result = await createStudentTestOtp(parsed.data.email);
-
-  if (!result.ok) {
-    return { error: result.error };
-  }
-
-  return { ok: true, message: "Dogrulama kodu e-posta adresinize gonderildi." };
-}
-
 export type StartAttemptState = {
   error?: string;
 };
 
 export async function startStudentAttempt(_prevState: StartAttemptState, formData: FormData): Promise<StartAttemptState> {
+  const student = await requireStudentSession();
   const parsed = studentAttemptStartSchema.safeParse({
     testId: formData.get("testId"),
-    fullName: formData.get("fullName"),
-    email: formData.get("email"),
-    phone: formData.get("phone") || undefined,
-    gradeLevel: formData.get("gradeLevel"),
-    schoolName: formData.get("schoolName") || undefined,
     teacherId: formData.get("teacherId") || undefined,
     kvkkAccepted: formData.get("kvkkAccepted"),
     privacyAccepted: formData.get("privacyAccepted"),
     termsAccepted: formData.get("termsAccepted"),
-    otpCode: formData.get("otpCode"),
   });
 
   if (!parsed.success) {
@@ -87,12 +44,6 @@ export async function startStudentAttempt(_prevState: StartAttemptState, formDat
 
   if (!rateLimit.success) {
     return { error: "Cok fazla test baslatma denemesi yapildi. Lutfen kisa bir sure sonra tekrar deneyin." };
-  }
-
-  const otpResult = await verifyStudentTestOtp(parsed.data.email, parsed.data.otpCode);
-
-  if (!otpResult.ok) {
-    return { error: otpResult.error };
   }
 
   const now = new Date();
@@ -112,23 +63,6 @@ export async function startStudentAttempt(_prevState: StartAttemptState, formDat
 
   const transactionResult = await db
     .$transaction(async (tx) => {
-    const student = await tx.student.upsert({
-      where: { email: parsed.data.email.toLowerCase() },
-      update: {
-        fullName: parsed.data.fullName,
-        phone: parsed.data.phone,
-        gradeLevel: parsed.data.gradeLevel,
-        schoolName: parsed.data.schoolName,
-      },
-      create: {
-        fullName: parsed.data.fullName,
-        email: parsed.data.email.toLowerCase(),
-        phone: parsed.data.phone,
-        gradeLevel: parsed.data.gradeLevel,
-        schoolName: parsed.data.schoolName,
-      },
-    });
-
     const existingAttempt = await tx.testAttempt.findUnique({
       where: {
         testId_studentId: {
@@ -144,6 +78,19 @@ export async function startStudentAttempt(_prevState: StartAttemptState, formDat
       }
 
       if (parsed.data.teacherId) {
+        const teacher = await tx.profile.findFirst({
+          where: {
+            id: parsed.data.teacherId,
+            role: UserRole.TEACHER,
+            isActive: true,
+          },
+          select: { id: true },
+        });
+
+        if (!teacher) {
+          return { error: "Secilen hoca bulunamadi veya aktif degil." } as const;
+        }
+
         await tx.teacherStudent.upsert({
           where: {
             teacherId_studentId: {
@@ -178,6 +125,7 @@ export async function startStudentAttempt(_prevState: StartAttemptState, formDat
     return { error: transactionResult.error };
   }
 
+  await grantStudentAttemptAccess(transactionResult.attemptId);
   redirect(`/test/${transactionResult.attemptId}`);
 }
 
@@ -187,6 +135,8 @@ export async function completeStudentAttempt(formData: FormData) {
   if (!attemptId) {
     throw new Error("Test denemesi bulunamadi.");
   }
+
+  await requireStudentAttemptPermission(attemptId);
 
   const now = new Date();
   const attempt = await db.testAttempt.findFirst({
@@ -206,7 +156,13 @@ export async function completeStudentAttempt(formData: FormData) {
               question: {
                 select: {
                   id: true,
+                  questionText: true,
+                  optionA: true,
+                  optionB: true,
+                  optionC: true,
+                  optionD: true,
                   correctOption: true,
+                  explanation: true,
                 },
               },
             },
@@ -235,6 +191,9 @@ export async function completeStudentAttempt(formData: FormData) {
   });
 
   const result = calculateTestResult(answers);
+  const questionSnapshots = new Map(
+    attempt.test.testQuestions.map((testQuestion) => [testQuestion.question.id, testQuestion.question]),
+  );
 
   await db.$transaction(async (tx) => {
     await tx.studentAnswer.deleteMany({
@@ -249,6 +208,13 @@ export async function completeStudentAttempt(formData: FormData) {
           selectedOption: answer.selectedOption,
           isCorrect: answer.isCorrect,
           answeredAt: now,
+          questionTextSnapshot: questionSnapshots.get(answer.questionId)?.questionText,
+          optionASnapshot: questionSnapshots.get(answer.questionId)?.optionA,
+          optionBSnapshot: questionSnapshots.get(answer.questionId)?.optionB,
+          optionCSnapshot: questionSnapshots.get(answer.questionId)?.optionC,
+          optionDSnapshot: questionSnapshots.get(answer.questionId)?.optionD,
+          correctOptionSnapshot: questionSnapshots.get(answer.questionId)?.correctOption,
+          explanationSnapshot: questionSnapshots.get(answer.questionId)?.explanation,
         })),
       });
     }

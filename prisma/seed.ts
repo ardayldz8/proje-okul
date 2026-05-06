@@ -16,6 +16,7 @@ async function main() {
   const adminPassword = process.env.ADMIN_PASSWORD ?? "ChangeMe123!";
   const teacherEmail = "hoca@example.com";
   const defaultPasswordHash = await bcrypt.hash(adminPassword, 12);
+  const studentPasswordHash = await bcrypt.hash(adminPassword, 12);
 
   const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },
@@ -112,10 +113,16 @@ async function main() {
 
   const student = await prisma.student.upsert({
     where: { email: "ogrenci@example.com" },
-    update: {},
+    update: {
+      passwordHash: studentPasswordHash,
+      fullName: "Demo Ogrenci",
+      gradeLevel: "8. Sinif",
+      schoolName: "Demo Okul",
+    },
     create: {
       fullName: "Demo Ogrenci",
       email: "ogrenci@example.com",
+      passwordHash: studentPasswordHash,
       gradeLevel: "8. Sinif",
       schoolName: "Demo Okul",
     },
