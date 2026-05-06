@@ -1,10 +1,22 @@
 "use client";
 
-import { Difficulty, TestStatus } from "@prisma/client";
 import { useActionState, useMemo, useState } from "react";
 
 import { createTest, type TestActionState } from "@/features/test-builder/actions";
 
+const DIFFICULTIES = {
+  EASY: "EASY",
+  MEDIUM: "MEDIUM",
+  HARD: "HARD",
+} as const;
+
+const TEST_STATUSES = {
+  DRAFT: "DRAFT",
+  ACTIVE: "ACTIVE",
+  ARCHIVED: "ARCHIVED",
+} as const;
+
+type Difficulty = (typeof DIFFICULTIES)[keyof typeof DIFFICULTIES];
 type CourseOption = { id: string; title: string };
 type QuestionOption = { id: string; questionText: string; difficulty: Difficulty; courseId: string; course: { title: string } };
 
@@ -47,9 +59,9 @@ export function TestForm({ courses, questions }: { courses: CourseOption[]; ques
         <label className="space-y-2 text-sm font-medium text-slate-700">
           <span>Durum</span>
           <select className="w-full rounded-xl border border-slate-300 px-4 py-3" name="status" required>
-            <option value={TestStatus.DRAFT}>Taslak</option>
-            <option value={TestStatus.ACTIVE}>Aktif</option>
-            <option value={TestStatus.ARCHIVED}>Arsiv</option>
+            <option value={TEST_STATUSES.DRAFT}>Taslak</option>
+            <option value={TEST_STATUSES.ACTIVE}>Aktif</option>
+            <option value={TEST_STATUSES.ARCHIVED}>Arsiv</option>
           </select>
         </label>
         <label className="flex items-center gap-3 self-end rounded-xl border border-slate-200 px-4 py-3 text-sm font-medium text-slate-700">
@@ -97,8 +109,8 @@ function Field({ label, name, placeholder, required = false, type = "text" }: { 
 
 function formatDifficulty(difficulty: Difficulty) {
   return {
-    [Difficulty.EASY]: "Kolay",
-    [Difficulty.MEDIUM]: "Orta",
-    [Difficulty.HARD]: "Zor",
+    [DIFFICULTIES.EASY]: "Kolay",
+    [DIFFICULTIES.MEDIUM]: "Orta",
+    [DIFFICULTIES.HARD]: "Zor",
   }[difficulty];
 }

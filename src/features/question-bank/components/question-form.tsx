@@ -1,9 +1,14 @@
 "use client";
 
-import { Difficulty } from "@prisma/client";
 import { useActionState } from "react";
 
 import { createQuestion, type QuestionActionState } from "@/features/question-bank/actions";
+
+const DIFFICULTIES = {
+  EASY: "EASY",
+  MEDIUM: "MEDIUM",
+  HARD: "HARD",
+} as const;
 
 type CourseOption = { id: string; title: string };
 
@@ -36,9 +41,9 @@ export function QuestionForm({ courses }: { courses: CourseOption[] }) {
         <label className="space-y-2 text-sm font-medium text-slate-700">
           <span>Zorluk</span>
           <select className="w-full rounded-xl border border-slate-300 px-4 py-3" name="difficulty" required>
-            <option value={Difficulty.EASY}>Kolay</option>
-            <option value={Difficulty.MEDIUM}>Orta</option>
-            <option value={Difficulty.HARD}>Zor</option>
+            <option value={DIFFICULTIES.EASY}>Kolay</option>
+            <option value={DIFFICULTIES.MEDIUM}>Orta</option>
+            <option value={DIFFICULTIES.HARD}>Zor</option>
           </select>
         </label>
 
