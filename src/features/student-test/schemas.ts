@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const studentAttemptStartSchema = z.object({
+export const studentStartSchema = z.object({
   testId: z.string().min(1),
   teacherId: z.string().trim().optional(),
   kvkkAccepted: z.literal("on", { error: "KVKK onayi zorunludur." }),
@@ -8,4 +8,4 @@ export const studentAttemptStartSchema = z.object({
   termsAccepted: z.literal("on", { error: "Kullanim kosullari onayi zorunludur." }),
 });
 
-export type StudentAttemptStartInput = z.infer<typeof studentAttemptStartSchema>;
+export type StudentStartInput = z.infer<typeof studentStartSchema>;

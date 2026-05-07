@@ -1,105 +1,38 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
+import { studentLoginSchema, studentRegisterSchema } from "@/features/student-portal/schemas";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { createStudentSession, clearStudentSession } from "@/lib/student-session";
 import { db } from "@/lib/db";
 import { hashPassword, verifyPassword } from "@/lib/password";
-import { checkRateLimit } from "@/lib/rate-limit";
-import { grantStudentSession, STUDENT_SESSION_COOKIE_NAME } from "@/lib/student-session";
 
-export type StudentPortalAuthState = {
+export type StudentAuthState = {
   error?: string;
 };
 
-function getValue(formData: FormData, key: string) {
-  return String(formData.get(key) ?? "").trim();
+function getRedirectPath(formData: FormData) {
+  const next = formData.get("next");
+  const value = typeof next === "string" && next.startsWith("/") ? next : "/student/dashboard";
+  return value.startsWith("//") ? "/student/dashboard" : value;
 }
 
-export async function registerStudentPortal(
-  _prevState: StudentPortalAuthState,
-  formData: FormData,
-): Promise<StudentPortalAuthState> {
-  const fullName = getValue(formData, "fullName");
-  const email = getValue(formData, "email").toLowerCase();
-  const password = getValue(formData, "password");
-  const gradeLevel = getValue(formData, "gradeLevel");
-  const schoolName = getValue(formData, "schoolName");
-  const next = getValue(formData, "next");
-
-  if (fullName.length < 2) {
-    return { error: "Ad soyad en az 2 karakter olmalidir." };
-  }
-
-  if (!email.includes("@")) {
-    return { error: "Gecerli bir e-posta girin." };
-  }
-
-  if (password.length < 8) {
-    return { error: "Sifre en az 8 karakter olmalidir." };
-  }
-
-  if (!gradeLevel) {
-    return { error: "Sinif seviyesi zorunludur." };
-  }
-
-  const existingStudent = await db.student.findUnique({
-    where: { email },
-    select: { id: true, passwordHash: true },
+export async function loginStudentPortal(_prevState: StudentAuthState, formData: FormData): Promise<StudentAuthState> {
+  const parsed = studentLoginSchema.safeParse({
+    email: formData.get("email"),
+    password: formData.get("password"),
   });
 
-  if (existingStudent?.passwordHash) {
-    return { error: "Bu e-posta ile zaten ogrenci hesabi bulunuyor." };
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Form bilgilerini kontrol edin." };
   }
 
-  const passwordHash = await hashPassword(password);
-
-  const student = existingStudent
-    ? await db.student.update({
-        where: { email },
-        data: {
-          fullName,
-          gradeLevel,
-          schoolName: schoolName || null,
-          passwordHash,
-        },
-        select: { id: true },
-      })
-    : await db.student.create({
-        data: {
-          fullName,
-          email,
-          gradeLevel,
-          schoolName: schoolName || null,
-          passwordHash,
-        },
-        select: { id: true },
-      });
-
-  await grantStudentSession(student.id);
-  redirect(next || "/student/dashboard");
-}
-
-export async function loginStudentPortal(
-  _prevState: StudentPortalAuthState,
-  formData: FormData,
-): Promise<StudentPortalAuthState> {
-  const email = getValue(formData, "email").toLowerCase();
-  const password = getValue(formData, "password");
-  const next = getValue(formData, "next");
-
-  if (!email.includes("@")) {
-    return { error: "Gecerli bir e-posta girin." };
-  }
-
-  if (!password) {
-    return { error: "Sifre zorunludur." };
-  }
-
+  const email = parsed.data.email.toLowerCase();
   const rateLimit = await checkRateLimit("studentLogin", email);
 
   if (!rateLimit.success) {
-    return { error: "Cok fazla giris denemesi yapildi. Lutfen kisa bir sure sonra tekrar deneyin." };
+    return { error: "Cok fazla giris denemesi yapildi. Lutfen biraz sonra tekrar deneyin." };
   }
 
   const student = await db.student.findUnique({
@@ -108,22 +41,69 @@ export async function loginStudentPortal(
   });
 
   if (!student?.passwordHash) {
-    return { error: "Bu e-posta ile aktif ogrenci hesabi bulunamadi." };
+    return { error: "E-posta veya sifre hatali." };
   }
 
-  const passwordMatches = await verifyPassword(password, student.passwordHash);
+  const passwordMatches = await verifyPassword(parsed.data.password, student.passwordHash);
 
   if (!passwordMatches) {
     return { error: "E-posta veya sifre hatali." };
   }
 
-  await grantStudentSession(student.id);
-  redirect(next || "/student/dashboard");
+  await createStudentSession(student.id);
+  redirect(getRedirectPath(formData));
+}
+
+export async function registerStudentPortal(_prevState: StudentAuthState, formData: FormData): Promise<StudentAuthState> {
+  const parsed = studentRegisterSchema.safeParse({
+    fullName: formData.get("fullName"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+    passwordConfirm: formData.get("passwordConfirm"),
+    gradeLevel: formData.get("gradeLevel"),
+    termsAccepted: formData.get("termsAccepted"),
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Form bilgilerini kontrol edin." };
+  }
+
+  const email = parsed.data.email.toLowerCase();
+  const existingStudent = await db.student.findUnique({
+    where: { email },
+    select: { id: true, passwordHash: true },
+  });
+
+  if (existingStudent?.passwordHash) {
+    return { error: "Bu e-posta ile kayitli bir ogrenci hesabi var. Giris yapmayi deneyin." };
+  }
+
+  const passwordHash = await hashPassword(parsed.data.password);
+  const student = existingStudent
+    ? await db.student.update({
+        where: { id: existingStudent.id },
+        data: {
+          fullName: parsed.data.fullName,
+          gradeLevel: parsed.data.gradeLevel,
+          passwordHash,
+        },
+        select: { id: true },
+      })
+    : await db.student.create({
+        data: {
+          fullName: parsed.data.fullName,
+          email,
+          gradeLevel: parsed.data.gradeLevel,
+          passwordHash,
+        },
+        select: { id: true },
+      });
+
+  await createStudentSession(student.id);
+  redirect("/student/dashboard");
 }
 
 export async function logoutStudentPortal() {
-  const cookieStore = await cookies();
-
-  cookieStore.delete(STUDENT_SESSION_COOKIE_NAME);
-  redirect("/student/login");
+  await clearStudentSession();
+  redirect("/");
 }

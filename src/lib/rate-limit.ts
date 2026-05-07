@@ -1,13 +1,12 @@
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-type RateLimitKind = "otp" | "testStart" | "teacherLogin" | "studentLogin";
+type RateLimitKind = "studentLogin" | "testStart" | "teacherLogin";
 
 const limitConfig: Record<RateLimitKind, { limit: number; window: `${number} ${"s" | "m" | "h" | "d"}` }> = {
-  otp: { limit: 3, window: "5 m" },
+  studentLogin: { limit: 10, window: "1 m" },
   testStart: { limit: 5, window: "1 m" },
   teacherLogin: { limit: 10, window: "1 m" },
-  studentLogin: { limit: 10, window: "1 m" },
 };
 
 const globalForRateLimit = globalThis as unknown as {

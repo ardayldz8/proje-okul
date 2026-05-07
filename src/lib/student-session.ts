@@ -3,18 +3,16 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
-import { hasStudentAttemptAccess } from "@/lib/student-attempt-access";
 
-export const STUDENT_SESSION_COOKIE_NAME = "student_portal_session";
+const COOKIE_NAME = "student_portal_session";
+const MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
 
-const COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 30;
-
-function getSigningSecret() {
-  const secret = process.env.NEXTAUTH_SECRET ?? process.env.AUTH_SECRET;
+function getSessionSecret() {
+  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
 
   if (!secret) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("Student session secret is not configured.");
+      throw new Error("NEXTAUTH_SECRET or AUTH_SECRET is required for student sessions.");
     }
 
     return "development-student-session-secret";
@@ -23,67 +21,62 @@ function getSigningSecret() {
   return secret;
 }
 
-function signStudentId(studentId: string) {
-  return createHmac("sha256", getSigningSecret()).update(studentId).digest("base64url");
+function sign(value: string) {
+  return createHmac("sha256", getSessionSecret()).update(value).digest("base64url");
 }
 
-function createSessionValue(studentId: string) {
-  return `${studentId}.${signStudentId(studentId)}`;
+function encodeSession(studentId: string) {
+  const payload = Buffer.from(JSON.stringify({ studentId }), "utf8").toString("base64url");
+  return `${payload}.${sign(payload)}`;
 }
 
-function signaturesMatch(actual: string, expected: string) {
-  const actualBuffer = Buffer.from(actual);
+function decodeSession(value: string | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  const [payload, signature] = value.split(".");
+
+  if (!payload || !signature) {
+    return null;
+  }
+
+  const expected = sign(payload);
+  const signatureBuffer = Buffer.from(signature);
   const expectedBuffer = Buffer.from(expected);
 
-  if (actualBuffer.length !== expectedBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(actualBuffer, expectedBuffer);
-}
-
-function getStudentIdFromCookieValue(value: string) {
-  const separatorIndex = value.lastIndexOf(".");
-
-  if (separatorIndex <= 0) {
+  if (signatureBuffer.length !== expectedBuffer.length || !timingSafeEqual(signatureBuffer, expectedBuffer)) {
     return null;
   }
 
-  const studentId = value.slice(0, separatorIndex);
-  const signature = value.slice(separatorIndex + 1);
-
-  if (!studentId || !signature) {
+  try {
+    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8")) as { studentId?: unknown };
+    return typeof parsed.studentId === "string" ? parsed.studentId : null;
+  } catch {
     return null;
   }
-
-  return signaturesMatch(signature, signStudentId(studentId)) ? studentId : null;
 }
 
-export async function grantStudentSession(studentId: string) {
+export async function createStudentSession(studentId: string) {
   const cookieStore = await cookies();
 
-  cookieStore.set(STUDENT_SESSION_COOKIE_NAME, createSessionValue(studentId), {
+  cookieStore.set(COOKIE_NAME, encodeSession(studentId), {
     httpOnly: true,
-    maxAge: COOKIE_MAX_AGE_SECONDS,
-    path: "/",
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: MAX_AGE_SECONDS,
   });
 }
 
-export async function getStudentSessionStudentId() {
+export async function clearStudentSession() {
   const cookieStore = await cookies();
-  const cookieValue = cookieStore.get(STUDENT_SESSION_COOKIE_NAME)?.value;
-
-  if (!cookieValue) {
-    return null;
-  }
-
-  return getStudentIdFromCookieValue(cookieValue);
+  cookieStore.delete(COOKIE_NAME);
 }
 
 export async function getCurrentStudentSession() {
-  const studentId = await getStudentSessionStudentId();
+  const cookieStore = await cookies();
+  const studentId = decodeSession(cookieStore.get(COOKIE_NAME)?.value);
 
   if (!studentId) {
     return null;
@@ -98,7 +91,6 @@ export async function getCurrentStudentSession() {
       phone: true,
       gradeLevel: true,
       schoolName: true,
-      createdAt: true,
     },
   });
 }
@@ -107,36 +99,8 @@ export async function requireStudentSession() {
   const student = await getCurrentStudentSession();
 
   if (!student) {
-    redirect("/student/login");
+    redirect("/login");
   }
 
   return student;
-}
-
-export async function canAccessStudentAttempt(attemptId: string) {
-  if (await hasStudentAttemptAccess(attemptId)) {
-    return true;
-  }
-
-  const studentId = await getStudentSessionStudentId();
-
-  if (!studentId) {
-    return false;
-  }
-
-  const attempt = await db.testAttempt.findFirst({
-    where: {
-      id: attemptId,
-      studentId,
-    },
-    select: { id: true },
-  });
-
-  return Boolean(attempt);
-}
-
-export async function requireStudentAttemptPermission(attemptId: string) {
-  if (!(await canAccessStudentAttempt(attemptId))) {
-    throw new Error("Bu test denemesi icin erisim yetkiniz yok.");
-  }
 }

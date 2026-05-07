@@ -1,6 +1,16 @@
-import { PrismaClient, Difficulty, TestStatus, AttemptStatus, UserRole } from "@prisma/client";
+import {
+  PrismaClient,
+  Difficulty,
+  TestStatus,
+  AttemptStatus,
+  UserRole,
+} from "@prisma/client";
+import { neonConfig } from "@neondatabase/serverless";
 import { PrismaNeon } from "@prisma/adapter-neon";
 import bcrypt from "bcryptjs";
+import ws from "ws";
+
+neonConfig.webSocketConstructor = ws;
 
 const connectionString = process.env.DATABASE_URL;
 
@@ -15,8 +25,8 @@ async function main() {
   const adminEmail = process.env.ADMIN_EMAIL ?? "admin@example.com";
   const adminPassword = process.env.ADMIN_PASSWORD ?? "ChangeMe123!";
   const teacherEmail = "hoca@example.com";
+  const studentEmail = "ogrenci@example.com";
   const defaultPasswordHash = await bcrypt.hash(adminPassword, 12);
-  const studentPasswordHash = await bcrypt.hash(adminPassword, 12);
 
   const adminUser = await prisma.user.upsert({
     where: { email: adminEmail },
@@ -55,9 +65,21 @@ async function main() {
   });
 
   const courseSeeds = [
-    { title: "Matematik", slug: "matematik", description: "Temel matematik ve problem cozme testleri." },
-    { title: "Turkce", slug: "turkce", description: "Dil bilgisi, paragraf ve anlam bilgisi testleri." },
-    { title: "Fen Bilgisi", slug: "fen-bilgisi", description: "Fen konulari icin coktan secmeli testler." },
+    {
+      title: "Matematik",
+      slug: "matematik",
+      description: "Temel matematik ve problem cozme testleri.",
+    },
+    {
+      title: "Turkce",
+      slug: "turkce",
+      description: "Dil bilgisi, paragraf ve anlam bilgisi testleri.",
+    },
+    {
+      title: "Fen Bilgisi",
+      slug: "fen-bilgisi",
+      description: "Fen konulari icin coktan secmeli testler.",
+    },
   ];
 
   const courses = [];
@@ -72,14 +94,35 @@ async function main() {
   }
 
   const mathCourse = courses[0];
+
+  const questionTexts = [
+    "Demo matematik sorusu 1",
+    "Demo matematik sorusu 2",
+    "Demo matematik sorusu 3",
+    "Demo matematik sorusu 4",
+    "Demo matematik sorusu 5",
+  ];
+
   const questions = [];
-  for (let index = 1; index <= 5; index += 1) {
-    questions.push(
-      await prisma.question.create({
+  for (let index = 0; index < questionTexts.length; index += 1) {
+    const qText = questionTexts[index];
+    const existing = await prisma.question.findFirst({
+      where: {
+        courseId: mathCourse.id,
+        ownerTeacherId: teacher.id,
+        questionText: qText,
+      },
+      select: { id: true },
+    });
+
+    if (existing) {
+      questions.push(existing);
+    } else {
+      const created = await prisma.question.create({
         data: {
           courseId: mathCourse.id,
           ownerTeacherId: teacher.id,
-          questionText: `Demo matematik sorusu ${index}`,
+          questionText: qText,
           optionA: "A secenegi",
           optionB: "B secenegi",
           optionC: "C secenegi",
@@ -89,40 +132,66 @@ async function main() {
           topic: "Demo konu",
           explanation: "Demo aciklama",
         },
-      }),
-    );
+      });
+      questions.push(created);
+    }
   }
 
-  const test = await prisma.test.create({
-    data: {
+  const testTitle = "Demo Matematik Testi";
+  let test = await prisma.test.findFirst({
+    where: {
+      title: testTitle,
       courseId: mathCourse.id,
       ownerTeacherId: teacher.id,
-      title: "Demo Matematik Testi",
-      description: "Ilk demo test.",
-      durationMinutes: 20,
-      status: TestStatus.ACTIVE,
-      testQuestions: {
-        create: questions.map((question, index) => ({
-          questionId: question.id,
-          orderIndex: index + 1,
-          points: 1,
-        })),
-      },
     },
   });
 
+  if (test) {
+    await prisma.testQuestion.deleteMany({
+      where: { testId: test.id },
+    });
+    await prisma.test.update({
+      where: { id: test.id },
+      data: {
+        description: "Ilk demo test.",
+        durationMinutes: 20,
+        status: TestStatus.ACTIVE,
+        testQuestions: {
+          create: questions.map((question, index) => ({
+            questionId: question.id,
+            orderIndex: index + 1,
+            points: 1,
+          })),
+        },
+      },
+    });
+  } else {
+    test = await prisma.test.create({
+      data: {
+        courseId: mathCourse.id,
+        ownerTeacherId: teacher.id,
+        title: testTitle,
+        description: "Ilk demo test.",
+        durationMinutes: 20,
+        status: TestStatus.ACTIVE,
+        testQuestions: {
+          create: questions.map((question, index) => ({
+            questionId: question.id,
+            orderIndex: index + 1,
+            points: 1,
+          })),
+        },
+      },
+    });
+  }
+
   const student = await prisma.student.upsert({
-    where: { email: "ogrenci@example.com" },
-    update: {
-      passwordHash: studentPasswordHash,
-      fullName: "Demo Ogrenci",
-      gradeLevel: "8. Sinif",
-      schoolName: "Demo Okul",
-    },
+    where: { email: studentEmail },
+    update: { passwordHash: defaultPasswordHash },
     create: {
       fullName: "Demo Ogrenci",
-      email: "ogrenci@example.com",
-      passwordHash: studentPasswordHash,
+      email: studentEmail,
+      passwordHash: defaultPasswordHash,
       gradeLevel: "8. Sinif",
       schoolName: "Demo Okul",
     },
@@ -130,7 +199,18 @@ async function main() {
 
   await prisma.testAttempt.upsert({
     where: { testId_studentId: { testId: test.id, studentId: student.id } },
-    update: {},
+    update: {
+      status: AttemptStatus.COMPLETED,
+      completedAt: new Date(),
+      durationSeconds: 320,
+      score: 100,
+      correctCount: 5,
+      wrongCount: 0,
+      emptyCount: 0,
+      kvkkAcceptedAt: new Date(),
+      privacyAcceptedAt: new Date(),
+      termsAcceptedAt: new Date(),
+    },
     create: {
       testId: test.id,
       studentId: student.id,
@@ -144,15 +224,26 @@ async function main() {
       kvkkAcceptedAt: new Date(),
       privacyAcceptedAt: new Date(),
       termsAcceptedAt: new Date(),
-      answers: {
-        create: questions.map((question) => ({
-          questionId: question.id,
-          selectedOption: "A",
-          isCorrect: true,
-        })),
-      },
     },
   });
+
+  const attempt = await prisma.testAttempt.findUnique({
+    where: { testId_studentId: { testId: test.id, studentId: student.id } },
+  });
+
+  if (attempt) {
+    await prisma.studentAnswer.deleteMany({
+      where: { attemptId: attempt.id },
+    });
+    await prisma.studentAnswer.createMany({
+      data: questions.map((question) => ({
+        attemptId: attempt.id,
+        questionId: question.id,
+        selectedOption: "A",
+        isCorrect: true,
+      })),
+    });
+  }
 }
 
 main()

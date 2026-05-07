@@ -125,13 +125,6 @@ export async function getTeacherResultDetail(teacherId: string, attemptId: strin
           id: true,
           selectedOption: true,
           isCorrect: true,
-          questionTextSnapshot: true,
-          optionASnapshot: true,
-          optionBSnapshot: true,
-          optionCSnapshot: true,
-          optionDSnapshot: true,
-          correctOptionSnapshot: true,
-          explanationSnapshot: true,
           question: {
             select: {
               questionText: true,

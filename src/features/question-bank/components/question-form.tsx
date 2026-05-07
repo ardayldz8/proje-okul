@@ -1,14 +1,9 @@
 "use client";
 
+import { Difficulty } from "@prisma/client";
 import { useActionState } from "react";
 
 import { createQuestion, type QuestionActionState } from "@/features/question-bank/actions";
-
-const DIFFICULTIES = {
-  EASY: "EASY",
-  MEDIUM: "MEDIUM",
-  HARD: "HARD",
-} as const;
 
 type CourseOption = { id: string; title: string };
 
@@ -18,10 +13,9 @@ export function QuestionForm({ courses }: { courses: CourseOption[] }) {
   const [state, formAction, isPending] = useActionState(createQuestion, initialState);
 
   return (
-    <form action={formAction} className="space-y-4 rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
+    <form action={formAction} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
       <div>
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-700">Soru girisi</p>
-        <h2 className="mt-2 text-2xl font-black text-slate-950">Yeni Soru Ekle</h2>
+        <h2 className="text-xl font-bold text-slate-950">Yeni Soru Ekle</h2>
         <p className="mt-1 text-sm text-slate-600">MVP&apos;de 4 sikli ve tek dogru cevapli soru eklenir.</p>
       </div>
 
@@ -41,9 +35,9 @@ export function QuestionForm({ courses }: { courses: CourseOption[] }) {
         <label className="space-y-2 text-sm font-medium text-slate-700">
           <span>Zorluk</span>
           <select className="w-full rounded-xl border border-slate-300 px-4 py-3" name="difficulty" required>
-            <option value={DIFFICULTIES.EASY}>Kolay</option>
-            <option value={DIFFICULTIES.MEDIUM}>Orta</option>
-            <option value={DIFFICULTIES.HARD}>Zor</option>
+            <option value={Difficulty.EASY}>Kolay</option>
+            <option value={Difficulty.MEDIUM}>Orta</option>
+            <option value={Difficulty.HARD}>Zor</option>
           </select>
         </label>
 
@@ -78,7 +72,7 @@ export function QuestionForm({ courses }: { courses: CourseOption[] }) {
       {state.error ? <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">{state.error}</p> : null}
       {state.message ? <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">{state.message}</p> : null}
 
-      <button className="rounded-2xl bg-indigo-950 px-5 py-3 font-bold text-white transition hover:bg-indigo-900 disabled:opacity-60" disabled={isPending} type="submit">
+      <button className="rounded-full bg-indigo-950 px-5 py-3 font-semibold text-white disabled:opacity-60" disabled={isPending} type="submit">
         {isPending ? "Ekleniyor..." : "Soruyu Ekle"}
       </button>
     </form>

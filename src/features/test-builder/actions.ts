@@ -141,3 +141,15 @@ export async function updateTest(formData: FormData) {
 
   revalidatePath("/teacher/tests");
 }
+
+export async function deleteTest(formData: FormData) {
+  const testId = String(formData.get("testId") ?? "");
+
+  if (!testId) {
+    throw new Error("Test bulunamadi.");
+  }
+
+  await assertOwnsTest(testId);
+  await db.test.delete({ where: { id: testId } });
+  revalidatePath("/teacher/tests");
+}

@@ -54,7 +54,6 @@ export async function getActiveTestsByCourseSlug(slug: string) {
           title: true,
           description: true,
           durationMinutes: true,
-          requiresStudentAccount: true,
           showResultImmediately: true,
           _count: {
             select: { testQuestions: true },

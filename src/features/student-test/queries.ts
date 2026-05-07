@@ -1,7 +1,6 @@
 import { AttemptStatus, TestStatus, UserRole } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { canAccessStudentAttempt } from "@/lib/student-session";
 
 function activeTestWhere(now: Date) {
   return {
@@ -56,10 +55,6 @@ export async function getPublicTestStartData(testId: string) {
 }
 
 export async function getAttemptForSolving(attemptId: string) {
-  if (!(await canAccessStudentAttempt(attemptId))) {
-    return null;
-  }
-
   const attempt = await db.testAttempt.findFirst({
     where: {
       id: attemptId,
@@ -67,6 +62,7 @@ export async function getAttemptForSolving(attemptId: string) {
     },
     select: {
       id: true,
+      studentId: true,
       startedAt: true,
       test: {
         select: {
@@ -112,40 +108,6 @@ export async function getAttemptForSolving(attemptId: string) {
 }
 
 export async function getAttemptResult(attemptId: string) {
-  if (!(await canAccessStudentAttempt(attemptId))) {
-    return null;
-  }
-
-  const attempt = await db.testAttempt.findFirst({
-    where: {
-      id: attemptId,
-      status: AttemptStatus.COMPLETED,
-    },
-    select: {
-      id: true,
-      score: true,
-      correctCount: true,
-      wrongCount: true,
-      emptyCount: true,
-      startedAt: true,
-      completedAt: true,
-      durationSeconds: true,
-      test: {
-        select: {
-          title: true,
-          showResultImmediately: true,
-          course: {
-            select: { title: true },
-          },
-        },
-      },
-    },
-  });
-
-  if (!attempt || !attempt.test.showResultImmediately) {
-    return attempt ? { ...attempt, answers: [] } : null;
-  }
-
   return db.testAttempt.findFirst({
     where: {
       id: attemptId,
@@ -160,6 +122,7 @@ export async function getAttemptResult(attemptId: string) {
       startedAt: true,
       completedAt: true,
       durationSeconds: true,
+      studentId: true,
       test: {
         select: {
           title: true,
@@ -174,12 +137,6 @@ export async function getAttemptResult(attemptId: string) {
         select: {
           selectedOption: true,
           isCorrect: true,
-          questionTextSnapshot: true,
-          optionASnapshot: true,
-          optionBSnapshot: true,
-          optionCSnapshot: true,
-          optionDSnapshot: true,
-          correctOptionSnapshot: true,
           question: {
             select: {
               questionText: true,

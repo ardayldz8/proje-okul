@@ -1,5 +1,9 @@
-import { StudentPanelShell } from "@/components/student-panel-shell";
+import type { ReactNode } from "react";
 
-export default function StudentLayout({ children }: { children: React.ReactNode }) {
-  return <StudentPanelShell>{children}</StudentPanelShell>;
+import { requireStudentSession } from "@/lib/student-session";
+
+export default async function StudentPanelLayout({ children }: { children: ReactNode }) {
+  await requireStudentSession();
+
+  return children;
 }

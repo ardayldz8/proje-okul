@@ -1,132 +1,181 @@
 import Link from "next/link";
-import { BarChart3, BookOpenCheck, ClipboardList, Users } from "lucide-react";
+import { BookOpen, CalendarDays, ClipboardList, FileText, Plus, Trophy, Users } from "lucide-react";
 
+import { TeacherNotificationBell } from "@/components/teacher-notification-bell";
+import { TeacherPanelFrame } from "@/components/teacher-panel-frame";
 import { getTeacherDashboardData } from "@/features/teacher-dashboard/queries";
-import { getTeacherProfile } from "@/lib/authorization";
+import { requireTeacher } from "@/lib/authorization";
 
 export const dynamic = "force-dynamic";
 
 export default async function TeacherDashboardPage() {
-  const teacher = await getTeacherProfile();
-  const dashboard = await getTeacherDashboardData(teacher.id);
-  const stats = [
-    { label: "Aktif Soru", value: dashboard.stats.questionCount, href: "/teacher/questions", icon: BookOpenCheck, tone: "teal" },
-    { label: "Toplam Test", value: dashboard.stats.testCount, href: "/teacher/tests", icon: ClipboardList, tone: "indigo" },
-    { label: "Sinav Denemesi", value: dashboard.stats.completedAttemptCount, href: "/teacher/results", icon: BarChart3, tone: "rose" },
-    { label: "Ogrenci", value: dashboard.stats.studentCount, href: "/teacher/students", icon: Users, tone: "amber" },
-  ] as const;
+  const session = await requireTeacher();
+  const teacherId = session.user.profileId!;
+  const teacherName = session.user.name ?? "Koç";
+  const { stats, recentAttempts } = await getTeacherDashboardData(teacherId);
+
+  const statItems = [
+    { label: "Aktif Soru", value: stats.questionCount.toLocaleString("tr-TR"), description: "Toplam soru havuzunuz", icon: BookOpen, tone: "rose" as const, change: "" },
+    { label: "Test", value: stats.testCount.toLocaleString("tr-TR"), description: "Oluşturulan testler", icon: ClipboardList, tone: "violet" as const, change: "" },
+    { label: "Öğrenci", value: stats.studentCount.toLocaleString("tr-TR"), description: "Toplam öğrenciniz", icon: Users, tone: "teal" as const, change: "" },
+    { label: "Deneme", value: stats.completedAttemptCount.toLocaleString("tr-TR"), description: "Yapılan denemeler", icon: Trophy, tone: "rose" as const, change: "" },
+  ];
+
+  const quickActions = [
+    { title: "Test Oluştur", description: "Yeni test oluştur ve yayınla", icon: Plus, tone: "rose" as const, href: "/teacher/tests/create" },
+    { title: "Soru Ekle", description: "Soru havuzuna yeni soru ekle", icon: BookOpen, tone: "teal" as const, href: "/teacher/questions" },
+    { title: "Sınıfa Yerleştir", description: "Öğrencileri sınıflara ata", icon: Users, tone: "violet" as const, href: "/teacher/students" },
+  ];
 
   return (
-    <main className="bg-slate-50 px-5 py-6 lg:px-8">
-      <section className="mx-auto max-w-6xl space-y-6">
-        <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-          <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-teal-900 p-8 text-white md:p-10">
-            <p className="text-sm font-bold uppercase tracking-[0.25em] text-teal-100/80">Canli ozet</p>
-            <h1 className="mt-4 text-3xl font-black tracking-tight md:text-5xl">Merhaba, {teacher.fullName}</h1>
-            <p className="mt-4 max-w-2xl leading-7 text-white/70">Soru havuzu, testler ve ogrenci sonuclarinizin guncel ozeti burada toplanir.</p>
-          </div>
-
-          <div className="grid gap-4 p-6 md:grid-cols-4 md:p-8">
-            {stats.map((stat) => (
-              <StatCard key={stat.label} {...stat} />
-            ))}
-          </div>
+    <TeacherPanelFrame activeHref="/teacher/dashboard" teacherName={teacherName}>
+      <header className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">Merhaba, {teacherName}</h1>
+          <p className="mt-2 text-sm text-white/64">Bugün öğrencilerin için ne hazırlamak istersin?</p>
         </div>
-
-        <div className="grid gap-4 md:grid-cols-3">
-          <QuickAction title="Soru Havuzu" description="Sorularinizi listeleyin, ekleyin ve duzenleyin." href="/teacher/questions" icon={BookOpenCheck} />
-          <QuickAction title="Test Yonetimi" description="Soru havuzundan yeni testler olusturun." href="/teacher/tests" icon={ClipboardList} />
-          <QuickAction title="Sonuclar" description="Sinava giren ogrencileri ve puanlari inceleyin." href="/teacher/results" icon={BarChart3} />
-        </div>
-
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-3">
+          <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/8 px-4 py-3 text-sm shadow-sm">
+            <CalendarDays aria-hidden className="h-4 w-4 text-white/70" />
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-700">Rapor</p>
-              <h2 className="mt-2 text-2xl font-black text-slate-950">Son Test Sonuclari</h2>
-              <p className="mt-2 text-sm text-slate-600">Tamamlanan son 5 test denemesi.</p>
+              <p className="font-semibold">
+                {new Date().toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" })}
+              </p>
+              <p className="text-xs text-white/50">
+                {new Date().toLocaleDateString("tr-TR", { weekday: "long" })}
+              </p>
             </div>
-            <Link className="rounded-2xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-900 transition hover:bg-slate-50" href="/teacher/results">
-              Tumunu Gor
+          </div>
+          <TeacherNotificationBell />
+        </div>
+      </header>
+
+      <div className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {statItems.map((stat) => (
+          <StatCard key={stat.label} {...stat} />
+        ))}
+      </div>
+
+      <section className="mt-7">
+        <h2 className="text-lg font-bold">Hızlı İşlemler</h2>
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          {quickActions.map((action) => (
+            <a key={action.title} href={action.href} className="group flex items-center justify-between gap-4 rounded-3xl border border-white/12 bg-white/8 p-4 text-left shadow-[0_18px_56px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white/12">
+              <div className="flex items-center gap-4">
+                <div className={`grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br ${toneClass(action.tone)} ring-1 ring-white/10`}>
+                  <action.icon aria-hidden className="h-5 w-5" strokeWidth={1.8} />
+                </div>
+                <div>
+                  <h3 className="font-semibold">{action.title}</h3>
+                  <p className="mt-1 text-xs text-white/50">{action.description}</p>
+                </div>
+              </div>
+              <span className="text-2xl text-white/55 transition group-hover:translate-x-1 group-hover:text-white">›</span>
+            </a>
+          ))}
+        </div>
+      </section>
+
+      <div className="mt-7 grid gap-4 xl:grid-cols-[1.8fr_1fr]">
+        <section className="rounded-3xl border border-white/12 bg-white/8 p-4 shadow-[0_18px_56px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-5">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <FileText aria-hidden className="h-5 w-5 text-white/78" />
+              <h2 className="font-bold">Son Denemeler</h2>
+            </div>
+            <Link href="/teacher/results" className="rounded-xl border border-white/10 bg-white/8 px-3 py-2 text-xs font-semibold text-white/70 transition hover:bg-white/12 hover:text-white">
+              Tümünü Gör
             </Link>
           </div>
 
-          {dashboard.recentAttempts.length > 0 ? (
-            <div className="mt-6 overflow-x-auto rounded-2xl border border-slate-200">
-              <table className="w-full min-w-[720px] border-collapse text-left text-sm">
-                <thead className="bg-slate-50 text-slate-600">
+          <div className="mt-4 overflow-x-auto">
+            <table className="w-full min-w-[680px] border-collapse text-left text-sm">
+              <thead className="text-xs text-white/45">
+                <tr className="border-b border-white/10">
+                  <th className="py-3 font-semibold">Test Adı</th>
+                  <th className="py-3 font-semibold">Ders</th>
+                  <th className="py-3 font-semibold">Öğrenci</th>
+                  <th className="py-3 font-semibold">Puan</th>
+                  <th className="py-3 font-semibold">D/Y/B</th>
+                  <th className="py-3 font-semibold">Tarih</th>
+                </tr>
+              </thead>
+              <tbody>
+                {recentAttempts.length === 0 ? (
                   <tr>
-                    <th className="px-4 py-3 font-semibold">Ogrenci</th>
-                    <th className="px-4 py-3 font-semibold">Test</th>
-                    <th className="px-4 py-3 font-semibold">Ders</th>
-                    <th className="px-4 py-3 font-semibold">Puan</th>
-                    <th className="px-4 py-3 font-semibold">D/Y/B</th>
-                    <th className="px-4 py-3 font-semibold">Tarih</th>
+                    <td colSpan={6} className="py-6 text-center text-sm text-white/55">
+                      Henüz tamamlanmış deneme yok.
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {dashboard.recentAttempts.map((attempt) => (
-                    <tr key={attempt.id} className="border-t border-slate-200 transition hover:bg-slate-50/80">
-                      <td className="px-4 py-3 text-slate-900">{attempt.student.fullName}</td>
-                      <td className="px-4 py-3 text-slate-700">{attempt.test.title}</td>
-                      <td className="px-4 py-3 text-slate-700">{attempt.test.course.title}</td>
-                      <td className="px-4 py-3 font-black text-slate-950">{Math.round(attempt.score ?? 0)}</td>
-                      <td className="px-4 py-3 text-slate-700">
-                        {attempt.correctCount}/{attempt.wrongCount}/{attempt.emptyCount}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600">{formatDate(attempt.completedAt)}</td>
+                ) : (
+                  recentAttempts.map((attempt) => (
+                    <tr key={attempt.id} className="border-b border-white/8 text-white/74 last:border-0">
+                      <td className="py-3 font-medium text-white/88">{attempt.test.title}</td>
+                      <td className="py-3">{attempt.test.course.title}</td>
+                      <td className="py-3">{attempt.student.fullName}</td>
+                      <td className={`py-3 font-semibold ${(attempt.score ?? 0) >= 75 ? "text-teal-300" : "text-orange-300"}`}>{attempt.score ?? 0}</td>
+                      <td className="py-3">{attempt.correctCount} / {attempt.wrongCount} / {attempt.emptyCount}</td>
+                      <td className="py-3">{attempt.completedAt ? new Date(attempt.completedAt).toLocaleDateString("tr-TR") : "-"}</td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-white/12 bg-white/8 p-5 shadow-[0_18px_56px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Trophy aria-hidden className="h-5 w-5 text-white/78" />
+              <h2 className="font-bold">Performans Özeti</h2>
             </div>
-          ) : (
-            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-slate-600">Henuz tamamlanan test sonucu yok.</div>
-          )}
+            <span className="rounded-xl border border-white/10 bg-white/8 px-3 py-2 text-xs text-white/65">Bu Ay</span>
+          </div>
+          <div className="mt-6 flex flex-col items-center justify-center gap-4 text-sm text-white/55">
+            <p>Performans verileri yakında burada görünecek.</p>
+          </div>
+          <div className="mt-6 rounded-2xl border border-white/10 bg-white/7 p-4">
+            <p className="text-xs text-white/45">Genel Başarı Ortalaması</p>
+            <div className="mt-1 flex items-end justify-between">
+              <p className="text-2xl font-bold">
+                {recentAttempts.length > 0
+                  ? Math.round(recentAttempts.reduce((sum, a) => sum + (a.score ?? 0), 0) / recentAttempts.length)
+                  : 0}
+              </p>
+              <p className="text-sm font-semibold text-teal-300">-</p>
+            </div>
+          </div>
+        </section>
+      </div>
+    </TeacherPanelFrame>
+  );
+}
+
+function StatCard({ label, value, description, icon: Icon, tone, change }: { label: string; value: string; description: string; icon: typeof BookOpen; tone: "rose" | "violet" | "teal"; change: string }) {
+  const toneClass = tone === "teal" ? "from-teal-500/30 to-cyan-500/10 text-teal-200" : tone === "violet" ? "from-violet-500/28 to-violet-500/10 text-violet-200" : "from-[#c23263]/35 to-[#5f0826]/20 text-rose-100";
+
+  return (
+    <div className="rounded-3xl border border-white/12 bg-white/8 p-5 shadow-[0_18px_56px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white/11">
+      <div className="flex items-start gap-4">
+        <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${toneClass} ring-1 ring-white/10`}>
+          <Icon aria-hidden className="h-6 w-6" strokeWidth={1.7} />
         </div>
-      </section>
-    </main>
-  );
-}
-
-function StatCard({ label, value, href, icon: Icon, tone }: { label: string; value: number; href: string; icon: typeof BookOpenCheck; tone: "teal" | "indigo" | "rose" | "amber" }) {
-  const toneClass = {
-    teal: "bg-teal-50 text-teal-700",
-    indigo: "bg-indigo-50 text-indigo-700",
-    rose: "bg-rose-50 text-rose-700",
-    amber: "bg-amber-50 text-amber-700",
-  }[tone];
-
-  return (
-    <Link className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-md" href={href}>
-      <div className={`grid h-11 w-11 place-items-center rounded-2xl ${toneClass}`}>
-        <Icon aria-hidden className="h-5 w-5" />
+        <div>
+          <p className="text-sm font-semibold text-white/72">{label}</p>
+          <p className="mt-1 text-3xl font-bold">{value}</p>
+          <p className="mt-1 text-xs text-white/45">{description}</p>
+        </div>
       </div>
-      <p className="mt-4 text-sm font-bold text-slate-500">{label}</p>
-      <p className="mt-2 text-4xl font-black text-slate-950">{value}</p>
-    </Link>
+      {change ? (
+        <div className="mt-5 rounded-2xl border border-white/8 bg-white/6 px-3 py-2 text-xs text-white/55">
+          <span className="font-semibold text-teal-300">{change}</span> Bu ay
+        </div>
+      ) : null}
+    </div>
   );
 }
 
-function QuickAction({ title, description, href, icon: Icon }: { title: string; description: string; href: string; icon: typeof BookOpenCheck }) {
-  return (
-    <Link className="group rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-1 hover:border-teal-300 hover:shadow-md" href={href}>
-      <div className="grid h-11 w-11 place-items-center rounded-2xl bg-slate-950 text-white transition group-hover:bg-teal-700">
-        <Icon aria-hidden className="h-5 w-5" />
-      </div>
-      <h2 className="mt-5 text-xl font-black text-slate-950">{title}</h2>
-      <p className="mt-3 text-sm leading-6 text-slate-600">{description}</p>
-    </Link>
-  );
-}
-
-function formatDate(date: Date | null) {
-  if (!date) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("tr-TR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(date);
+function toneClass(tone: "rose" | "teal" | "violet") {
+  return tone === "teal" ? "from-teal-500/30 to-cyan-500/10 text-teal-200" : tone === "violet" ? "from-violet-500/28 to-violet-500/10 text-violet-200" : "from-[#c23263]/35 to-[#5f0826]/20 text-rose-100";
 }

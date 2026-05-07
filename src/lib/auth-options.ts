@@ -34,6 +34,7 @@ function getRequestIp(headers: Record<string, string | string[] | undefined> | u
 
 export const authOptions: NextAuthOptions = {
   adapter: PrismaAdapter(db),
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET,
   session: {
     strategy: "jwt",
   },

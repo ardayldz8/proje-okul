@@ -1,107 +1,105 @@
+import { BookOpen, BarChart3, Users, Trophy } from "lucide-react";
+
+import { TeacherPanelFrame, TeacherPanelHeader } from "@/components/teacher-panel-frame";
 import { getTeacherStudents } from "@/features/results/queries";
-import { getTeacherProfile } from "@/lib/authorization";
+import { requireTeacher } from "@/lib/authorization";
 
 export const dynamic = "force-dynamic";
 
 export default async function TeacherStudentsPage() {
-  const teacher = await getTeacherProfile();
-  const students = await getTeacherStudents(teacher.id);
-  const totalCompletedAttempts = students.reduce(
-    (sum, { student }) => sum + student.attempts.filter((attempt) => attempt.status === "COMPLETED").length,
-    0,
-  );
+  const session = await requireTeacher();
+  const teacherId = session.user.profileId!;
+  const teacherName = session.user.name ?? "Koç";
+  const assignments = await getTeacherStudents(teacherId);
+
+  const totalStudents = assignments.length;
+  const totalAttempts = assignments.reduce((sum, a) => sum + a.student.attempts.length, 0);
+  const allScores = assignments.flatMap((a) => a.student.attempts.map((att) => att.score ?? 0)).filter((s) => s > 0);
+  const averageScore = allScores.length > 0 ? Math.round(allScores.reduce((a, b) => a + b, 0) / allScores.length) : 0;
 
   return (
-    <main className="bg-slate-50 px-5 py-6 lg:px-8">
-      <section className="mx-auto max-w-6xl space-y-6">
-        <div className="overflow-hidden rounded-[2rem] border border-slate-200 bg-white shadow-sm">
-          <div className="bg-gradient-to-br from-indigo-950 via-slate-900 to-teal-900 p-8 text-white md:p-10">
-            <p className="text-sm font-bold uppercase tracking-[0.25em] text-teal-100/80">Ogrenci Takibi</p>
-            <h1 className="mt-4 text-3xl font-black tracking-tight md:text-5xl">Tanimli Ogrenciler</h1>
-            <p className="mt-4 max-w-2xl leading-7 text-white/70">Size atanmis veya test baslangicinda sizi secmis ogrencilerin ilerlemesini ve son denemelerini takip edin.</p>
-          </div>
-          <div className="grid gap-4 p-6 md:grid-cols-3 md:p-8">
-            <SummaryCard label="Ogrenci" value={students.length.toString()} />
-            <SummaryCard label="Tamamlanan deneme" value={totalCompletedAttempts.toString()} />
-            <SummaryCard label="Son atama" value={students[0]?.assignedAt ? formatDate(students[0].assignedAt) : "-"} />
-          </div>
-        </div>
+    <TeacherPanelFrame activeHref="/teacher/students" teacherName={teacherName}>
+      <TeacherPanelHeader title="Sınıflar & Öğrenciler" subtitle="Öğrencilerini görüntüle ve performanslarını takip et." />
 
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm md:p-8">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] text-teal-700">Liste</p>
-              <h2 className="mt-2 text-2xl font-black text-slate-950">Ogrenciler</h2>
-            </div>
-            <span className="rounded-full bg-slate-100 px-3 py-1 text-sm font-bold text-slate-600">{students.length} ogrenci</span>
-          </div>
+      <section className="mt-6 grid gap-4 md:grid-cols-4">
+        <StatCard icon={Users} label="Toplam Öğrenci" value={totalStudents.toString()} tone="teal" />
+        <StatCard icon={BookOpen} label="Toplam Deneme" value={totalAttempts.toString()} tone="rose" />
+        <StatCard icon={Trophy} label="Ortalama Puan" value={averageScore.toString()} tone="violet" />
+        <StatCard icon={BarChart3} label="Bu Ay Katılan" value="-" tone="orange" />
+      </section>
 
-          {students.length > 0 ? (
-            <div className="mt-6 grid gap-4">
-              {students.map(({ id, assignedAt, student }) => {
-                const completedAttempts = student.attempts.filter((attempt) => attempt.status === "COMPLETED");
-                const latestAttempt = completedAttempts[0] ?? student.attempts[0] ?? null;
+      <section className="mt-6 rounded-3xl border border-white/10 bg-white/8 p-4 shadow-[0_18px_56px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl sm:p-5">
+        <h2 className="text-lg font-bold">Öğrencilerim</h2>
+        <p className="mt-2 text-sm leading-6 text-white/56">Sana atanmış öğrenciler ve son denemeleri.</p>
 
-                return (
-                  <article key={id} className="rounded-3xl border border-slate-200 p-5 transition hover:border-teal-200 hover:shadow-sm">
-                    <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr]">
-                      <div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="text-lg font-black text-slate-950">{student.fullName}</h3>
-                          <span className="rounded-full bg-teal-50 px-3 py-1 text-xs font-bold text-teal-700">{student.gradeLevel}</span>
-                        </div>
-                        <div className="mt-3 grid gap-1 text-sm text-slate-600">
-                          <p>{student.email}</p>
-                          {student.phone ? <p>{student.phone}</p> : null}
-                          {student.schoolName ? <p>{student.schoolName}</p> : null}
-                          <p>Atanma tarihi: {formatDate(assignedAt)}</p>
-                        </div>
-                      </div>
-
-                      <div className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-700">
-                        <p className="font-bold text-slate-950">Test Ozeti</p>
-                        <p className="mt-2">Tamamlanan deneme: {completedAttempts.length}</p>
-                        {latestAttempt ? (
-                          <div className="mt-3 border-t border-slate-200 pt-3">
-                            <p className="font-bold text-slate-900">Son test: {latestAttempt.test.title}</p>
-                            <p className="mt-1">Ders: {latestAttempt.test.course.title}</p>
-                            <p className="mt-1">Puan: {latestAttempt.score === null ? "-" : Math.round(latestAttempt.score)}</p>
-                            <p className="mt-1">Tarih: {formatDate(latestAttempt.completedAt)}</p>
-                          </div>
-                        ) : (
-                          <p className="mt-3 text-slate-500">Bu ogrencinin size ait test denemesi yok.</p>
-                        )}
-                      </div>
-                    </div>
-                  </article>
-                );
-              })}
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {assignments.length === 0 ? (
+            <div className="rounded-3xl border border-dashed border-white/14 bg-white/6 p-8 text-center text-sm text-white/55 sm:col-span-2 xl:col-span-3">
+              Henüz atanmış öğrenci yok.
             </div>
           ) : (
-            <div className="mt-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-slate-600">Henuz size tanimli ogrenci yok.</div>
+            assignments.map((assignment) => {
+              const student = assignment.student;
+              const latestAttempt = student.attempts[0];
+              return (
+                <article key={assignment.id} className="rounded-3xl border border-white/10 bg-white/7 p-4 shadow-[0_18px_56px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl transition hover:-translate-y-1 hover:bg-white/10">
+                  <div className="flex items-start gap-3">
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-[#8f123a] to-[#5f0826] text-sm font-bold">
+                      {student.fullName
+                        .split(" ")
+                        .filter(Boolean)
+                        .slice(0, 2)
+                        .map((p) => p[0]?.toUpperCase())
+                        .join("")}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">{student.fullName}</h3>
+                      <p className="mt-1 text-xs text-white/50">{student.gradeLevel}</p>
+                      <p className="text-xs text-white/50">{student.email}</p>
+                      {student.schoolName ? <p className="text-xs text-white/50">{student.schoolName}</p> : null}
+                    </div>
+                  </div>
+                  {latestAttempt ? (
+                    <div className="mt-4 rounded-2xl border border-white/10 bg-white/6 p-3 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white/70">{latestAttempt.test.title}</span>
+                        <span className={`font-bold ${(latestAttempt.score ?? 0) >= 75 ? "text-teal-300" : "text-amber-300"}`}>{latestAttempt.score ?? 0}</span>
+                      </div>
+                      <p className="mt-1 text-xs text-white/45">{latestAttempt.test.course.title}</p>
+                      <p className="text-xs text-white/45">{latestAttempt.completedAt ? new Date(latestAttempt.completedAt).toLocaleDateString("tr-TR") : "-"}</p>
+                    </div>
+                  ) : (
+                    <p className="mt-4 text-xs text-white/45">Henüz deneme yok.</p>
+                  )}
+                </article>
+              );
+            })
           )}
         </div>
       </section>
-    </main>
+    </TeacherPanelFrame>
   );
 }
 
-function SummaryCard({ label, value }: { label: string; value: string }) {
+function StatCard({ icon: Icon, label, value, tone }: { icon: typeof Users; label: string; value: string; tone: "teal" | "rose" | "violet" | "orange" }) {
+  const toneClass = {
+    teal: "from-teal-500/30 to-cyan-500/10 text-teal-200",
+    rose: "from-[#c23263]/35 to-[#5f0826]/20 text-rose-100",
+    violet: "from-violet-500/28 to-violet-500/10 text-violet-200",
+    orange: "from-orange-500/30 to-orange-500/10 text-orange-200",
+  }[tone];
+
   return (
-    <div className="rounded-2xl bg-slate-50 p-4">
-      <p className="text-xs font-bold uppercase tracking-[0.18em] text-slate-500">{label}</p>
-      <p className="mt-2 text-3xl font-black text-slate-950">{value}</p>
+    <div className="rounded-3xl border border-white/10 bg-white/8 p-4 shadow-[0_18px_56px_-34px_rgba(0,0,0,0.9)] backdrop-blur-xl">
+      <div className="flex items-center gap-4">
+        <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${toneClass} ring-1 ring-white/10`}>
+          <Icon className="h-6 w-6" />
+        </div>
+        <div>
+          <p className="text-sm text-white/55">{label}</p>
+          <p className="mt-0.5 text-2xl font-bold">{value}</p>
+        </div>
+      </div>
     </div>
   );
-}
-
-function formatDate(date: Date | null) {
-  if (!date) {
-    return "-";
-  }
-
-  return new Intl.DateTimeFormat("tr-TR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(date);
 }
